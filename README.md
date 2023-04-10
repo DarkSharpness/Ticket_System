@@ -1,2 +1,7 @@
-# Ticket_System_Fucks_Me_Hard
-Nothing fucks me harder than the bloody ticket system at present.
+# Fuck you Bplus Tree!
+
+# Fuck you Ticket System!
+
+# Fuck you all the obstacles in my way!
+
+# Fuck myself!
