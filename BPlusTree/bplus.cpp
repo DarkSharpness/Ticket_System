@@ -20,14 +20,19 @@ class tree {
     file_manager leave;
     file_manager index;
 
-
   public:
     tree() = delete;
     tree(std::string path1,std::string path2) :
         leave((path1 + ".dat"),(path1 + ".in")), 
-        index((path2 + ".dat"),(path2 + ".in")) 
-    { }
+        index((path2 + ".dat"),(path2 + ".in")) { 
+        if(index.empty()) {
+            index.
+        }
+
+
+    }
     ~tree() = default;
+
 
 
 };

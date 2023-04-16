@@ -4,12 +4,11 @@
 #include <fstream>
 #include <Dark/trivial_array>
 #include <Dark/LRU_map>
-#include <unordered_map>
 #include <Dark/memleak>
 
 namespace dark {
 
-/* Simple file_state wrapper */
+/* Simple file_state wrapper. Use one bit to store modified state. */
 struct file_state {
     size_t state;
     bool is_modified() const noexcept { return state >> 63; }
@@ -40,13 +39,15 @@ struct equal_to <dark::file_state> {
 
 namespace dark {
 
-struct tester { long long data[4]; };
-using T = tester;
-constexpr size_t kMAPSIZE = 10;
 
-class file_manager {
+template <
+    class T,
+    size_t table_size,
+    size_t cache_size
+> class file_manager {
   private:
-    using map_t = LRU_map <file_state,T>;
+    using map_t    = LRU_map <file_state,T,table_size>;
+    using iterator = typename map_t::iterator;
 
     std::fstream dat_file; /* Pure data file. */
     std::fstream bin_file; /* First 16 Byte : total and count. Then data array. */
@@ -56,20 +57,35 @@ class file_manager {
     T cache;      /* Cache Block.    */
 
     /* Insert the map with data in cache block at given iterator. */
-    void insert_map(map_t::iterator iter,size_t index) {
+    void insert_map(iterator iter,size_t index) {
         /* Need to write back to cache first. */
         std::pair <file_state,T> *__t;
 
-        if(map.size() == kMAPSIZE && (__t = map.last())->first.is_modified())
+        /* If modified and full sized , write to disk first. */
+        if(map.size() == cache_size && (__t = map.last())->first.is_modified())
             write_object(__t->second,__t->first.index());
 
         /* Insert the element after iterator. */
-        map.insert({index},cache,iter,map.size() == kMAPSIZE);
+        map.insert_after({index},cache,iter,map.size() == cache_size);
     }
 
+    /* Return the index of the block newly allocated. */
+    size_t allocate_index() {
+        if(!bin_array.empty()) return bin_array.pop_back();
+        write_object(cache,total); /* Write to enlarge the space. */
+        return total++;
+    }
+
+
+  public:
+
+    /* Visitor to cache data. */
     struct visitor {
         std::pair <file_state,T> *__p;
 
+        inline bool is_modified() noexcept { return __p->first.is_modified(); }
+
+        /* Use this function whenever the state is modified. */
         inline void modify() noexcept { return __p->first.modify(); }
 
         inline T &data() { return __p->second; }
@@ -85,10 +101,6 @@ class file_manager {
         inline size_t index() const noexcept 
         { return __p->first.index(); }
     };
-
-
-
-  public:
 
 
     /* Can't start from nothing. */
@@ -137,7 +149,7 @@ class file_manager {
 
     /* Return reference to given data. */
     visitor get_object(size_t index) {
-        auto iter = map.try_find({index});
+        auto iter = map.find_pre({index});
         auto *__p = iter.next_data();
         if(__p) return {__p};
         read_object(cache,index); /* Read to cache first. */
@@ -149,14 +161,22 @@ class file_manager {
     /* Recycle an old node. */
     void recycle(size_t index) {
         bin_array.push_back(index);
-        map.erase({index});
+        auto iter = map.find_pre({index});
+        auto *__p = iter.next_data();
+        /* If existed and modified , write back to disk first. */
+        if(__p && __p->first.is_modified())
+            write_object(__p->second,__p->first.index());
+        /* Erase element from map */
+        map.erase_after(iter);
     }
-    /* Allocate a new node. */
-    size_t allocate() {
-        if(!bin_array.empty()) return bin_array.pop_back();
-        insert_map(map.try_find({total}),total); /* Insert into cache. */
-        write_object(cache,total); /* Write to enlarge the space. */
-        return total++;
+
+    /* Allocate a new node for further modification. */
+    visitor allocate() {
+        size_t index = allocate_index();
+        auto iter = map.find_pre({index});
+        /* Of course, newly allocated node will be modified. */
+        insert_map(iter,index | 1ULL << 63);
+        return {iter.next_data()};
     }
 
 
@@ -191,12 +211,3 @@ class file_manager {
 
 
 #endif
-
-signed main() {
-    dark::file_manager test("a.dat","a.bin");
-    size_t x = test.allocate();
-    auto   t = test.get_object(x);
-    t.modify();
-    *t = {7,7,7,7};
-    return 0;
-}
