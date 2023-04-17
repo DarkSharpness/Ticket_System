@@ -5,33 +5,33 @@
 #include <string>
 #include <fstream>
 #include <Dark/inout>
-#include "file_manager.cpp"
+#include "file_manager.h"
 
 namespace dark {
 
 namespace b_plus {
 
-const int N = 100;
-using key_t = char[32];
-using   T   = size_t;
+using key_t = char [68];
+using   T   = int;
+
+constexpr size_t kBLOCK_SIZE = 100;
 
 class tree {
   private:
-    file_manager leave;
-    file_manager index;
+    struct pair {
+        key_t key;
+        T value;
+    };
+
+    struct leave_node {
+        int prev;
+        int next;
+        pair data[kBLOCK_SIZE];
+    };
+
 
   public:
     tree() = delete;
-    tree(std::string path1,std::string path2) :
-        leave((path1 + ".dat"),(path1 + ".in")), 
-        index((path2 + ".dat"),(path2 + ".in")) { 
-        if(index.empty()) {
-            index.
-        }
-
-
-    }
-    ~tree() = default;
 
 
 

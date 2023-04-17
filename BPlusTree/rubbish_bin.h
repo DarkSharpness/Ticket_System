@@ -15,7 +15,7 @@ namespace dark {
 class rubbish_bin {
     std::fstream bin_file; /* First 16 Byte : total and count. Then data array. */
     size_t total; /* Count of nodes. */
-    trivial_array <size_t> bin_array;  /* Cache of unused nodes. */
+    trivial_array <int> bin_array;  /* Cache of unused nodes. */
 
   public:
 
@@ -35,7 +35,7 @@ class rubbish_bin {
             /* Update info. */
             total = buffer.first;
             bin_array.resize(buffer.second);
-            bin_file.read((char *)bin_array.data(),buffer.second * sizeof(size_t));
+            bin_file.read((char *)bin_array.data(),buffer.second * sizeof(int));
         }
     }
 
@@ -44,18 +44,18 @@ class rubbish_bin {
         bin_file.seekp(0);
         std::pair <size_t,size_t> buffer(total,bin_array.size());
         bin_file.write((char *)&buffer,sizeof(buffer));
-        bin_file.write((char *)bin_array.data(),buffer.second * sizeof(size_t));
+        bin_file.write((char *)bin_array.data(),buffer.second * sizeof(int));
         bin_file.close();
     }
 
     /* Allocate one index. */
-    size_t allocate() {
+    int allocate() {
         if(!bin_array.empty()) return bin_array.pop_back();
         else return total++;
     }
 
     /* Recyle one index. */
-    void recycle(size_t index) { bin_array.push_back(index); }
+    void recycle(int index) { bin_array.push_back(index); }
 
     /* Return count of all nodes. */
     size_t size() const noexcept { return total; }
