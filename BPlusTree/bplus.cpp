@@ -2,7 +2,9 @@
 
 namespace dark {
 
-namespace b_plus {
+struct error {
+    error(std::string str) { std::cout << str << '\n'; }
+};
 
 template <size_t __n>
 struct string {
@@ -23,6 +25,8 @@ template <size_t __n>
 inline bool operator < (const string <__n> &lhs,const string <__n> &rhs) 
 noexcept { return strcmp(lhs.base(),rhs.base()) < 0; }
 
+namespace b_plus {
+
 
 using key_t = string <12>;
 using   T   = int;
@@ -32,7 +36,7 @@ using val_comp = Compare   <T>;
 
 constexpr int TABLE_SIZE = 1019;
 constexpr int CACHE_SIZE = 300;
-constexpr int BLOCK_SIZE = 3;
+constexpr int BLOCK_SIZE = 6;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int SPLIT_SIZE = (BLOCK_SIZE + 1) / 2;
 constexpr int  MAX_SIZE  = 300000;
@@ -332,6 +336,41 @@ class tree {
         return true;
     }
 
+    void print_outer(header head) {
+        visitor pointer = get_pointer(head.real_index());
+        std::cout << "Outer block "  << head.real_index() << " :\n";
+        for(int i = 0 ; i != head.count ; ++i)
+            std::cout << "Leaf " << i << ": || key: "
+                      << pointer->data[i].v.key.str
+                      << " || value: "
+                      << pointer->data[i].v.val
+                      << " ||\n";
+        std::cout << "Next index x: " << pointer->next();
+        std::cout << "\n--------------------------------\n";
+    }
+
+
+    void print(header head) {
+        if(!head.is_inner()) return print_outer(head);
+        visitor pointer = get_pointer(head.real_index());
+        if(head.count != pointer->count) 
+            throw error("Data MisMatch!!!");
+
+        std::cout << "Inner block "  << head.real_index() << " :\n";
+        for(int i = 0 ; i != head.count ; ++i)
+            std::cout << "Son " << i << ": || index: "
+                      << pointer->head(i).real_index()
+                      << " || key: "
+                      << pointer->data[i].v.key.str
+                      << " || value: "
+                      << pointer->data[i].v.val
+                      << " ||\n";
+        std::cout << "Next index x: " << pointer->next();
+        std::cout << "\n--------------------------------\n";
+
+        for(int i = 0 ; i != head.count ; ++i)
+            print(pointer->head(i));
+    }
 
   public: /* Public functions. */
 
@@ -399,9 +438,15 @@ class tree {
     }
 
     /* Erase a key-value pair from the node. */
-    void erase(const key_t &__k,const T &__v) {
+    void erase(const key_t &key,const T &val) {
         if(empty()) return;
     
+    }
+
+
+    void check_function() {
+        std::cout << "--------------------------------\n";
+        if(!empty()) return print(root());
     }
 
 };
@@ -413,15 +458,21 @@ class tree {
 
 signed main() {
     dark::b_plus::tree t("a");
-    t.insert("abcd",'hell');
-    t.insert("abcd",'dick');
-    t.insert("abcd",'fuck');
-    t.insert("abcd",'shit');
+    t.insert("abcd",1);
+    t.insert("abcd",3);
+    t.insert("abcd",4);
+    t.insert("abcd",9);
+    t.insert("abcd",10);
+    t.insert("abcd",0);
+
+    t.insert("abcd",-3);
 
     dark::trivial_array <int> v;
     t.find("abcd",v);
 
     for(auto iter : v) std::cout << iter << ' ';
     std::cout << '\n';
+
+    t.check_function();
     return 0;
 }
