@@ -8,10 +8,7 @@ namespace dark {
 
 enum class node_type : bool  { INNER = 1,OUTER = 0 };
 
- /* Use memmove to move data fast. */
-template <class T>
-static void mmove(T *dst,const T *src,int count) noexcept 
-{ memmove(dst,src,count * sizeof(T)); }
+
 
 
 /* Simple file_state wrapper. Use highest bit to store modification state. */
@@ -38,7 +35,7 @@ struct header {
     int real_index() const noexcept { return is_inner() ? state : ~state ; }
 
     /**
-     * @brief Set the index of the target node
+     * @brief Set the index of the target node.
      * 
      * @param __n The real index of the node.
      * @param flag Whether the node is an inner node.

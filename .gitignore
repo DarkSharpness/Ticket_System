@@ -2,3 +2,4 @@
 *.bin
 *.dat
 /Local_test
+*.exe

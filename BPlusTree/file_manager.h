@@ -116,7 +116,7 @@ class file_manager {
 
     /* Return reference to given data. */
     visitor get_object(int index) {
-        auto iter = map.find_pre({index});
+        auto iter = map.find_pre({index,0});
         auto *__p = iter.next_data();
 
         if(__p) return {__p};     /* Cache hit case.*/
@@ -131,7 +131,7 @@ class file_manager {
         /* Recycle first to rubbish bin. */
         bin.recycle(index);
 
-        auto iter = map.find_pre({index});
+        auto iter = map.find_pre({index,0});
         auto *__p = iter.next_data();
         /* If existed and modified , write back to disk first. */
         if(__p && __p->first.is_modified())
@@ -144,7 +144,7 @@ class file_manager {
     visitor allocate() {
         int index = bin.allocate(); /* Allocate a new node. */
 
-        auto iter = map.find_pre({index}); /* Iterator before {index}. */
+        auto iter = map.find_pre({index,0}); /* Iterator before {index}. */
 
         /* Of course, newly allocated node will be modified. */
         insert_map(iter,{index,1});
