@@ -1,0 +1,10 @@
+#ifndef _DARK_ITERATOR_
+#define _DARK_ITERATOR_
+
+#if __cplusplus < 201103L
+#error Dark/iterator requires minimum C++11
+#endif
+#include "Container/iterator.h"
+
+
+#endif

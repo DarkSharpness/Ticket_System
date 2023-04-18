@@ -1,0 +1,9 @@
+#ifndef _DARK_INOUT_
+#define _DARK_INOUT_
+
+#if __cplusplus < 201103L
+#error Dark/inout requires minimum C++11
+#endif
+#include "General/inout.h"
+
+#endif

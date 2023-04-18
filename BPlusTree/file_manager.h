@@ -3,8 +3,7 @@
 
 #include "rubbish_bin.h"
 
-#include <Dark/memleak>
-#include <Dark/LRU_map>
+#include "Dark/LRU_map"
 
 namespace dark {
 

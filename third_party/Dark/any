@@ -1,0 +1,11 @@
+#ifndef _DARK_ANY_
+#define _DARK_ANY_
+
+
+#if __cplusplus < 201402L
+#error Dark/Any requires minimum C++14
+#endif
+
+#include "Container/any.h"
+
+#endif

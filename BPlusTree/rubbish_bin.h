@@ -4,7 +4,7 @@
 
 #include "utility.h"
 
-#include <Dark/trivial_array>
+#include "Dark/trivial_array"
 
 namespace dark {
 

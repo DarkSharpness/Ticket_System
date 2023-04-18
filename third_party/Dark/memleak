@@ -1,0 +1,9 @@
+#ifndef _DARK_MEMLEAK_
+#define _DARK_MEMLEAK_
+
+#if __cplusplus < 201402L
+#error Dark/memleak requires minimum C++14
+#endif
+#include "General/memleak.h"
+
+#endif

@@ -1,0 +1,12 @@
+#ifndef _DARK_DYNAMIC_ARRAY_
+#define _DARK_DYNAMIC_ARRAY_
+
+
+#if __cplusplus < 201103L
+#error Dark/dynamic_array requires minimum C++11
+#endif
+
+
+#include "Container/dynamic_array.h"
+
+#endif

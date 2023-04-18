@@ -1,0 +1,10 @@
+#ifndef _DARK_MAP_
+#define _DARK_MAP_
+
+#if __cplusplus < 201103L
+#error Dark/map requires minimum C++11
+#endif
+#include "Container/map.h"
+
+
+#endif

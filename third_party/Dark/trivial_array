@@ -1,0 +1,10 @@
+#ifndef _DARK_TRIVIAL_ARRAY_
+#define _DARK_TRIVIAL_ARRAY_
+
+#if __cplusplus < 201103L
+#error Dark/trivial_array requires minimum C++11
+#endif
+
+#include "Container/trivial_array.h"
+
+#endif

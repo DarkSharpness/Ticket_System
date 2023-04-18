@@ -1,0 +1,7 @@
+#ifndef _DARK_RANDOM_
+#define _DARK_RANDOM_
+
+#include "General/random.h"
+
+
+#endif
