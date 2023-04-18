@@ -2,9 +2,9 @@
 #define _DARK_RUBBISH_BIN_H_
 
 
-#include <Dark/trivial_array>
+#include "utility.h"
 
-#include <fstream>
+#include <Dark/trivial_array>
 
 namespace dark {
 
@@ -59,6 +59,9 @@ class rubbish_bin {
 
     /* Return count of all nodes. */
     size_t size() const noexcept { return total; }
+
+    /* Skip the last block. Users should manager the block themselves. */
+    void skip_block() { ++total; }
 
 };
 

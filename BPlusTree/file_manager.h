@@ -8,60 +8,6 @@
 
 namespace dark {
 
-/* Simple file_state wrapper. Use highest bit to store modification state. */
-struct file_state {
-    int  index; /* Index of the real data. */
-    bool state; /* Use highest bit to store modification state. */
-
-    bool is_modified() const noexcept { return state; }
-    void modify() noexcept { state = true; }
-
-};
-
-/* Simple wrapper of fstream read-in function. */
-template <class T>
-struct reading_func {
-    void operator ()(std::fstream &__f,T &obj) {
-        __f.read((char *)(&obj),sizeof(T));
-    }
-};
-
-/* Simple wrapper of fstream write function. */
-template <class T>
-struct writing_func {
-    void operator ()(std::fstream &__f,const T &obj) {
-        __f.write((const char *)(&obj),sizeof(T));
-    }
-};
-
-}
-
-/* DEBUG USE ONLY! */
-std::ostream &operator << (std::ostream &os,dark::file_state x) 
-{  return os << x.index; }
-
-
-namespace std {
-
-/* Custom hash. */
-template <>
-struct hash <dark::file_state> {
-    size_t operator() (dark::file_state t) const noexcept 
-    { return t.index; }
-};
-
-/* Custom equal to. */
-template <>
-struct equal_to <dark::file_state> {
-    bool operator() (dark::file_state x,dark::file_state y) 
-    const noexcept { return x.index == y.index; }
-};
-
-}
-
-
-namespace dark {
-
 
 /**
  * @brief A file manager requiring two files.
@@ -77,8 +23,7 @@ template <
     class T,
     size_t table_size,
     size_t cache_size,
-    size_t bias = 0,
-    class i_func =  reading_func <T>,
+    class i_func = reading_func <T>,
     class o_func = writing_func <T>
 > 
 class file_manager {
@@ -106,10 +51,10 @@ class file_manager {
 
     /* Locate the position for reading. */
     void locate_in (int index) 
-    { dat_file.seekg(index * sizeof(T) + bias); }
+    { dat_file.seekg(index * sizeof(T)); }
     /* Locate the position for writing. */
     void locate_out(int index) 
-    { dat_file.seekp(index * sizeof(T) + bias); }
+    { dat_file.seekp(index * sizeof(T)); }
 
   public:
     [[no_unique_address]]i_func reader; /* Read  func. Modifiable. */
@@ -146,7 +91,12 @@ class file_manager {
 
     /* Can't start from nothing. */
     file_manager() = delete;
-    /* Initialize by passing 2 file path */
+    /**
+     * @brief Construct a new file manager object.
+     * 
+     * @param __dat The path for .dat file.
+     * @param __bin The path for .bin file.
+     */
     file_manager(std::string __dat,std::string __bin) noexcept :
         bin(__bin), dat_file(__dat,std::ios::in | std::ios::out | std::ios::binary)  {
         if(!dat_file.good()) {
@@ -201,13 +151,15 @@ class file_manager {
         return {iter.next_data()};
     }
 
+    /* Skip the last block. Users should manager the block themselves. */
+    void skip_block() { bin.skip_block(); }
 
-    /* Read object from disk. */
+    /* Read object from disk at given index. */
     void read_object(T &obj,int index) {
         locate_in(index);
         reader(dat_file,obj);
     }
-    /* Write object to disk. */
+    /* Write object to disk at given index. */
     void write_object(const T &obj,int index) {
         locate_out(index);
         writer(dat_file,obj);
