@@ -74,8 +74,12 @@ class tree {
         inline header &head(int x) { return data[x].head; }
 
         inline int next() const noexcept { return real_index(); }
-        inline void set_next(int index,dark::node_type flag) 
-        { return set_index(index,flag);  }
+
+        inline void set_next(int index,dark::node_type flag)
+        { return set_index(index,flag); }
+
+        inline void set_next(int index)
+        { return set_index(index,node_type(is_inner())); }
     };
 
     using node_file_t =
@@ -172,12 +176,30 @@ class tree {
 
     /**
      * @brief Split at pointer's x-th son.
+     * Note that pointer->count remains unchanged.
      * 
      * @param pointer Pointer of father node.
-     * @param x       The subscript of the node to split.
+     * @param    x    The subscript of the node to split.
      */
     void split_node(visitor pointer,int x) {
-        throw; // This won't happen
+        visitor prev = cache_pointer;
+        visitor next = allocate();
+
+        /* Update next() of prev and next.  */
+        next->state = prev->state; 
+        prev->set_next(next.index());
+
+        /* Update prev and next count */
+        prev->count -= (next->count = prev->count >> 1);
+        pointer->head(x).count = prev->count;
+        mmove(next->data,prev->data + prev->count,next->count);
+
+        /* Insert a next at (x + 1)-th position of pointer. */
+        if(++x <= pointer->count)
+            mmove(pointer->data + x + 1,pointer->data + x,pointer->count - x);
+        pointer->data[x].v     = next->data[0].v;
+        pointer->head(x).count = next->count;
+        pointer->head(x).set_index(next.index(),node_type(next->is_inner()));
     }
 
    
@@ -185,7 +207,7 @@ class tree {
     inline void amortize_prev(visitor prev,visitor next) {
         prev.modify();
         next.modify();
-        
+
         int delta = (prev->count - next->count) >> 1;
 
         mmove(next->data + delta,next->data,next->count);
@@ -226,7 +248,7 @@ class tree {
             pointer->head(x - 1).count = prev->count;
             pointer->head(x).count     = next->count;
             pointer->data[x].v         = next->data[0].v;
-        } else if(x != pointer->count && pointer->head(x + 1).count < AMORT_SIZE) {
+        } else if(x != pointer->count - 1 && pointer->head(x + 1).count < AMORT_SIZE) {
             visitor prev = cache_pointer;
             visitor next = get_pointer(pointer->head(x + 1).real_index());
             amortize_prev(prev,next);
@@ -253,12 +275,16 @@ class tree {
         int x = binary_search(pointer->data,key,val,0,head.count);
         if(x < 0) return false; /* Find exactly the node. */
 
-        /* Modify the data first. */
+        /* Data will be modified. */
         pointer.modify();
+
+        /* Insert the key-value pair into the node. */
         mmove(pointer->data + x + 1,pointer->data + x,pointer->count - x);
         pointer->data[x].copy(key,val);
-        pointer->count = ++head.count;
-        cache_pointer  = pointer;
+        head.count = ++pointer->count;
+
+        /* Move the pointer to cache. */
+        cache_pointer = pointer;
         return true;
     }
 
@@ -299,6 +325,10 @@ class tree {
 
         /* Split the node now. */
         split_node(pointer,x);
+        head.count = ++pointer->count;
+
+        /* Move the pointer to cache. */
+        cache_pointer = pointer;
         return true;
     }
 
@@ -383,8 +413,10 @@ class tree {
 
 signed main() {
     dark::b_plus::tree t("a");
-    t.insert("abcd",'efgh');
-    t.insert("abcd",'abcd');
+    t.insert("abcd",'hell');
+    t.insert("abcd",'dick');
+    t.insert("abcd",'fuck');
+    t.insert("abcd",'shit');
 
     dark::trivial_array <int> v;
     t.find("abcd",v);
