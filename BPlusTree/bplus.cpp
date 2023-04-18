@@ -35,7 +35,7 @@ using val_comp = Compare   <T>;
 
 
 constexpr int TABLE_SIZE = 1019;
-constexpr int CACHE_SIZE = 300;
+constexpr int CACHE_SIZE = 100; // NO LESS THAN  tree_height * 2 + 2
 constexpr int BLOCK_SIZE = 6;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int SPLIT_SIZE = (BLOCK_SIZE + 1) / 2;
@@ -175,7 +175,26 @@ class tree {
 
     /* Split the root node */
     void split_root() {
+        visitor prev = allocate();
+        visitor next = allocate();
 
+        /* Update next() of prev and next.  */
+        prev->state = next.index();
+        next->state = MAX_SIZE;
+
+        /* Update prev and next count and move data. */
+        prev->count = root().count >> 1;
+        next->count = (root().count + 1) >> 1;
+        mmove(prev->data,root().data,prev->count);
+        mmove(next->data,root().data + prev->count,next->count);
+
+        /* Modify root part. */
+        root().count = 2;
+
+        root().head(0) = {prev.index(),prev->count};
+        root().head(1) = {next.index(),next->count};
+
+        root().data[1].v = next->data[0].v;
     }
 
     /**
@@ -190,16 +209,16 @@ class tree {
         visitor next = allocate();
 
         /* Update next() of prev and next.  */
-        next->state = prev->state; 
+        next->state = prev->state;
         prev->set_next(next.index());
 
-        /* Update prev and next count */
+        /* Update prev and next count and move data. */
         prev->count -= (next->count = prev->count >> 1);
         pointer->head(x).count = prev->count;
         mmove(next->data,prev->data + prev->count,next->count);
 
         /* Insert a next at (x + 1)-th position of pointer. */
-        if(++x <= pointer->count)
+        if(++x < pointer->count)
             mmove(pointer->data + x + 1,pointer->data + x,pointer->count - x);
         pointer->data[x].v     = next->data[0].v;
         pointer->head(x).count = next->count;
@@ -336,6 +355,7 @@ class tree {
         return true;
     }
 
+    /* DEBUG USE ONLY! */
     void print_outer(header head) {
         visitor pointer = get_pointer(head.real_index());
         std::cout << "Outer block "  << head.real_index() << " :\n";
@@ -349,7 +369,7 @@ class tree {
         std::cout << "\n--------------------------------\n";
     }
 
-
+    /* DEBUG USE ONLY! */
     void print(header head) {
         if(!head.is_inner()) return print_outer(head);
         visitor pointer = get_pointer(head.real_index());
@@ -440,12 +460,11 @@ class tree {
     /* Erase a key-value pair from the node. */
     void erase(const key_t &key,const T &val) {
         if(empty()) return;
-    
     }
 
 
     void check_function() {
-        std::cout << "--------------------------------\n";
+        std::cout << "\n--------------------------------\n";
         if(!empty()) return print(root());
     }
 
@@ -458,20 +477,38 @@ class tree {
 
 signed main() {
     dark::b_plus::tree t("a");
+
     t.insert("abcd",1);
     t.insert("abcd",3);
     t.insert("abcd",4);
     t.insert("abcd",9);
     t.insert("abcd",10);
     t.insert("abcd",0);
-
     t.insert("abcd",-3);
-
+    t.insert("0",3);
+    t.insert("1",1);
+    t.insert("2",3);
+    t.insert("3",6);
+    t.insert("1",0);
+    t.insert("b",2);
+    t.insert("b",1);
+    t.insert("b",3);
+    t.insert("b",5);
+    t.insert("c",3);
+    t.insert("a",0);
+    t.insert("0",0);
+    t.insert("b",4);
+    t.insert("0",1);
+    t.insert("a",2);
+    t.insert("2",0);
+    t.insert("a",3);
+    t.insert("a",4);
+    t.insert("c",6);
+    t.insert("c",5);   
+    
     dark::trivial_array <int> v;
     t.find("abcd",v);
-
-    for(auto iter : v) std::cout << iter << ' ';
-    std::cout << '\n';
+    for(auto && iter : v) std::cout << iter << ' ';
 
     t.check_function();
     return 0;
