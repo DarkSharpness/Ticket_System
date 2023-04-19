@@ -35,7 +35,7 @@ using val_comp = Compare   <T>;
 
 
 constexpr int TABLE_SIZE = 1019;
-constexpr int CACHE_SIZE = 100; // NO LESS THAN  tree_height * 2 + 2
+constexpr int CACHE_SIZE = 1000; // NO LESS THAN  tree_height * 2 + 2
 constexpr int BLOCK_SIZE = 6;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int SPLIT_SIZE = (BLOCK_SIZE + 1) / 2;
@@ -44,6 +44,7 @@ constexpr int  MAX_SIZE  = 300000;
 
 class tree {
   private: /* Struct and using part. */
+  public:
 
     /* Trivial key-value pair class. */
     struct value_t {
@@ -86,11 +87,26 @@ class tree {
         { return set_index(index,node_type(is_inner())); }
     };
 
+    struct node_reader {
+        size_t count = BLOCK_SIZE;
+        inline void operator ()(std::fstream &__f,node &obj) { 
+            __f.read((char *)(&obj),sizeof(header) + count * sizeof(tuple_t));
+        }
+    };
+
+    struct node_writer {
+        inline void operator ()(std::fstream &__f,const node &obj) {
+            __f.write((const char *)&obj,sizeof(header) + size_t(obj.count) * sizeof(tuple_t));
+        }
+    };
+
     using node_file_t =
             file_manager <
                 node,
                 TABLE_SIZE,
-                CACHE_SIZE
+                CACHE_SIZE,
+                node_reader,
+                node_writer
             >;
     using visitor = typename node_file_t::visitor;
 
@@ -150,8 +166,11 @@ class tree {
     { memmove(dst,src,count * sizeof(tuple_t)); }
 
     /* Get pointer for node at x position. */
-    inline visitor get_pointer(int x)
-    { return x ? file.get_object(x) : visitor{&__root_pair}; }
+    inline visitor get_pointer(header head) {
+        file.reader.count = head.count;
+        int x = head.real_index();
+        return x ? file.get_object(x) : visitor{&__root_pair};
+    }
 
     /* Allocate one node. */
     inline visitor allocate() { return file.allocate(); }
@@ -265,7 +284,7 @@ class tree {
      */
     bool insert_amortize(visitor pointer,int x) {
         if(x != 0 && pointer->head(x - 1).count < AMORT_SIZE) {
-            visitor prev = get_pointer(pointer->head(x - 1).real_index());
+            visitor prev = get_pointer(pointer->head(x - 1));
             visitor next = cache_pointer;
             amortize_next(prev,next);
             pointer->head(x - 1).count = prev->count;
@@ -273,7 +292,7 @@ class tree {
             pointer->data[x].v         = next->data[0].v;
         } else if(x != pointer->count - 1 && pointer->head(x + 1).count < AMORT_SIZE) {
             visitor prev = cache_pointer;
-            visitor next = get_pointer(pointer->head(x + 1).real_index());
+            visitor next = get_pointer(pointer->head(x + 1));
             amortize_prev(prev,next);
             pointer->head(x).count     = prev->count;
             pointer->head(x + 1).count = next->count;
@@ -294,7 +313,7 @@ class tree {
      */
     bool insert_outer(header &head,const key_t &key,const T &val) {
         /* Binaray searching. */
-        visitor pointer = get_pointer(head.real_index());
+        visitor pointer = get_pointer(head);
         int x = binary_search(pointer->data,key,val,0,head.count);
         if(x < 0) return false; /* Find exactly the node. */
 
@@ -325,7 +344,7 @@ class tree {
         if(!head.is_inner()) return insert_outer(head,key,val);
 
         /* Binaray searching. */
-        visitor pointer = get_pointer(head.real_index());
+        visitor pointer = get_pointer(head);
         int x = binary_search(pointer->data,key,val,0,head.count);
         if(x < 0) return false; /* Find exactly the node. */
         else if(x > 0) --x;
@@ -357,7 +376,7 @@ class tree {
 
     /* DEBUG USE ONLY! */
     void print_outer(header head) {
-        visitor pointer = get_pointer(head.real_index());
+        visitor pointer = get_pointer(head);
         std::cout << "Outer block "  << head.real_index() << " :\n";
         for(int i = 0 ; i != head.count ; ++i)
             std::cout << "Leaf " << i << ": || key: "
@@ -372,7 +391,7 @@ class tree {
     /* DEBUG USE ONLY! */
     void print(header head) {
         if(!head.is_inner()) return print_outer(head);
-        visitor pointer = get_pointer(head.real_index());
+        visitor pointer = get_pointer(head);
         if(head.count != pointer->count) 
             throw error("Data MisMatch!!!");
 
@@ -434,13 +453,13 @@ class tree {
 
         /* Find the real inner node. */
         while(head.is_inner()) {
-            visitor pointer = get_pointer(head.real_index());
+            visitor pointer = get_pointer(head);
             int x = lower_bound(pointer->data + 1,key,0,head.count - 1);
             head = pointer->head(x);
         }
 
         /* The real outer node. */
-        visitor pointer = get_pointer(head.real_index());
+        visitor pointer = get_pointer(head);
         int x = lower_bound(pointer->data,key,0,head.count);
 
         while(x != head.count) {
@@ -449,7 +468,7 @@ class tree {
         }
 
         while(pointer->next() != MAX_SIZE) {
-            pointer = get_pointer(pointer->next()); x = 0;
+            pointer = get_pointer(*pointer); x = 0;
             while(x != pointer->count){
                 if(k_comp(key,pointer->data[x].v.key)) return;
                 v.push_back(pointer->data[x++].v.val);
@@ -463,12 +482,19 @@ class tree {
     }
 
 
-    void check_function() {
-        std::cout << "\n--------------------------------\n";
-        if(!empty()) return print(root());
-    }
+    void check_function() { if(!empty()) return print(root()); }
 
 };
+
+/* DEBUG USE ONLY! */
+std::ostream &operator <<(std::ostream &os,const tree::node &n) {
+    for(int i = 0 ; i < n.count ; ++i)
+        std::cout << n.data[i].head.real_index() << ' '
+                  << n.data[i].head.count        << ' '
+                  << n.data[i].v.key.str         << ' '
+                  << n.data[i].v.val             << '\n';
+}
+
 
 }
 
