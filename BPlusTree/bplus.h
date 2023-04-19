@@ -1,9 +1,14 @@
 #include "file_manager.h"
 
+
 namespace dark {
 
+
 struct error {
-    error(std::string str) { std::cout << str << '\n'; }
+    error(std::string str) {
+        freopen("CON","w",stdout);
+        std::cout << str << '\n';
+    }
 };
 
 template <size_t __n>
@@ -28,15 +33,14 @@ noexcept { return strcmp(lhs.base(),rhs.base()) < 0; }
 namespace b_plus {
 
 
-using key_t = string <12>;
+using key_t = string <68>;
 using   T   = int;
 using key_comp = Compare <key_t>;
 using val_comp = Compare   <T>;
 
-
-constexpr int TABLE_SIZE = 1019;
-constexpr int CACHE_SIZE = 1000; // NO LESS THAN  tree_height * 2 + 2
-constexpr int BLOCK_SIZE = 6;
+constexpr int TABLE_SIZE = 3000;
+constexpr int CACHE_SIZE = 2000; // NO LESS THAN tree_height * 2 + 2
+constexpr int BLOCK_SIZE = 101;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int SPLIT_SIZE = (BLOCK_SIZE + 1) / 2;
 constexpr int  MAX_SIZE  = 300000;
@@ -44,7 +48,6 @@ constexpr int  MAX_SIZE  = 300000;
 
 class tree {
   private: /* Struct and using part. */
-  public:
 
     /* Trivial key-value pair class. */
     struct value_t {
@@ -72,7 +75,7 @@ class tree {
         { v.copy(key,val); }
     };
 
-    /* Index node trivial calss */
+    /* Index node trivial class */
     struct node : header {
         tuple_t data[BLOCK_SIZE + 1]; /* One more space for better performance. */
         /* Return head info of x-th node. x should be in [0,count] */
@@ -88,15 +91,14 @@ class tree {
     };
 
     struct node_reader {
-        size_t count = BLOCK_SIZE;
-        inline void operator ()(std::fstream &__f,node &obj) { 
-            __f.read((char *)(&obj),sizeof(header) + count * sizeof(tuple_t));
+        inline void operator ()(std::fstream &__f,node &obj) {
+            __f.read((char *)(&obj),sizeof(header) + BLOCK_SIZE * sizeof(tuple_t));
         }
     };
 
     struct node_writer {
         inline void operator ()(std::fstream &__f,const node &obj) {
-            __f.write((const char *)&obj,sizeof(header) + size_t(obj.count) * sizeof(tuple_t));
+            __f.write((const char *)&obj,sizeof(header) + BLOCK_SIZE * sizeof(tuple_t));
         }
     };
 
@@ -108,6 +110,7 @@ class tree {
                 node_reader,
                 node_writer
             >;
+
     using visitor = typename node_file_t::visitor;
 
    private: /* Data part. */
@@ -167,7 +170,6 @@ class tree {
 
     /* Get pointer for node at x position. */
     inline visitor get_pointer(header head) {
-        file.reader.count = head.count;
         int x = head.real_index();
         return x ? file.get_object(x) : visitor{&__root_pair};
     }
@@ -314,6 +316,7 @@ class tree {
     bool insert_outer(header &head,const key_t &key,const T &val) {
         /* Binaray searching. */
         visitor pointer = get_pointer(head);
+        if(head.count != pointer->count) throw error("outer");
         int x = binary_search(pointer->data,key,val,0,head.count);
         if(x < 0) return false; /* Find exactly the node. */
 
@@ -343,8 +346,10 @@ class tree {
         /* If outer file , start insertion. */
         if(!head.is_inner()) return insert_outer(head,key,val);
 
+
         /* Binaray searching. */
         visitor pointer = get_pointer(head);
+        if(head.count != pointer->count) throw error("inner");
         int x = binary_search(pointer->data,key,val,0,head.count);
         if(x < 0) return false; /* Find exactly the node. */
         else if(x > 0) --x;
@@ -413,6 +418,8 @@ class tree {
 
   public: /* Public functions. */
 
+    using return_list = dark::trivial_array <T>;
+
     tree() = delete;
 
     /* Initialize the tree. */
@@ -447,7 +454,7 @@ class tree {
     }
 
     /* Find all value-type binded to key. */
-    void find(const key_t &key,dark::trivial_array <T> &v) {
+    void find(const key_t &key,return_list &v) {
         if(empty()) return;
         header head = root();
 
@@ -481,19 +488,9 @@ class tree {
         if(empty()) return;
     }
 
-
+    /* DEBUG USE ONLY! */
     void check_function() { if(!empty()) return print(root()); }
-
 };
-
-/* DEBUG USE ONLY! */
-std::ostream &operator <<(std::ostream &os,const tree::node &n) {
-    for(int i = 0 ; i < n.count ; ++i)
-        std::cout << n.data[i].head.real_index() << ' '
-                  << n.data[i].head.count        << ' '
-                  << n.data[i].v.key.str         << ' '
-                  << n.data[i].v.val             << '\n';
-}
 
 
 }

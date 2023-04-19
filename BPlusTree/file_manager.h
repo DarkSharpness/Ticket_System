@@ -23,7 +23,8 @@ template <
     size_t table_size,
     size_t cache_size,
     class i_func = reading_func <T>,
-    class o_func = writing_func <T>
+    class o_func = writing_func <T>,
+    size_t page_size = ((sizeof(T) - 1) / 4096 + 1) * 4096
 > 
 class file_manager {
   private:
@@ -50,10 +51,10 @@ class file_manager {
 
     /* Locate the position for reading. */
     void locate_in (int index) 
-    { dat_file.seekg(index * sizeof(T)); }
+    { dat_file.seekg(index * page_size); }
     /* Locate the position for writing. */
     void locate_out(int index) 
-    { dat_file.seekp(index * sizeof(T)); }
+    { dat_file.seekp(index * page_size); }
 
   public:
     [[no_unique_address]]i_func reader; /* Read  func. Modifiable. */
