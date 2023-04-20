@@ -86,8 +86,7 @@ class LRU_map {
             baseptr temp = cache.real; 
             cache.real   = cache.real->real;
             return temp;
-        }
-        else return impl.alloc(hash::forward_tag(),__k,__t);
+        } else return impl.alloc(hash::forward_tag(),__k,__v);
     }
 
   public:
