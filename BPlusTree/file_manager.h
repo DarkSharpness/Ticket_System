@@ -130,14 +130,8 @@ class file_manager {
     void recycle(int index) {
         /* Recycle first to rubbish bin. */
         bin.recycle(index);
-
-        auto iter = map.find_pre({index,0});
-        auto *__p = iter.next_data();
-        /* If existed and modified , write back to disk first. */
-        if(__p && __p->first.is_modified())
-            write_object(__p->second,__p->first.index);
         /* Erase element from map. */
-        map.erase_after(iter);
+        map.erase({index,0});
     }
 
     /* Allocate a new node for further modification. */

@@ -33,16 +33,17 @@ noexcept { return strcmp(lhs.base(),rhs.base()) < 0; }
 namespace b_plus {
 
 
-using key_t = string <68>;
+using key_t = string <12>;
 using   T   = int;
 using key_comp = Compare <key_t>;
 using val_comp = Compare   <T>;
 
 constexpr int TABLE_SIZE = 3000;
-constexpr int CACHE_SIZE = 2000; // NO LESS THAN tree_height * 2 + 2
-constexpr int BLOCK_SIZE = 101;
+constexpr int CACHE_SIZE = 10000; // NO LESS THAN tree_height * 2 + 2
+constexpr int BLOCK_SIZE = 9;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int SPLIT_SIZE = (BLOCK_SIZE + 1) / 2;
+constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
 constexpr int  MAX_SIZE  = 300000;
 
 
@@ -59,7 +60,7 @@ class tree {
 
     /* Tuple of value and index and count. */
     struct tuple_t {
-        value_t v; /* Largest pair of target node. */
+        value_t v; /* Samllest pair of target node. */
         header head;  /* A small header. */
 
         /* Copying header info and value. */
@@ -108,7 +109,8 @@ class tree {
                 TABLE_SIZE,
                 CACHE_SIZE,
                 node_reader,
-                node_writer
+                node_writer,
+                sizeof(node)
             >;
 
     using visitor = typename node_file_t::visitor;
@@ -119,9 +121,6 @@ class tree {
     [[no_unique_address]] val_comp v_comp; /* Value compare function. */
 
     std::pair <file_state,node> __root_pair; /* Do not use it directly. */
-
-    file_state &root_state() { return __root_pair.first; }
-    node &root() { return __root_pair.second; }
 
     node_file_t file;
     visitor cache_pointer;
@@ -165,14 +164,19 @@ class tree {
     }
 
     /* Use memmove to move data fast. */
-    static void mmove(tuple_t *dst,const tuple_t *src,int count) noexcept 
+    static inline void mmove(tuple_t *dst,const tuple_t *src,int count) noexcept 
     { memmove(dst,src,count * sizeof(tuple_t)); }
+
+    file_state &root_state() { return __root_pair.first; }
+    node &root() { return __root_pair.second; }
 
     /* Get pointer for node at x position. */
     inline visitor get_pointer(header head) {
         int x = head.real_index();
         return x ? file.get_object(x) : visitor{&__root_pair};
     }
+
+    inline void recycle(visitor x) { return file.recycle(x.index()); }
 
     /* Allocate one node. */
     inline visitor allocate() { return file.allocate(); }
@@ -206,7 +210,7 @@ class tree {
         /* Update prev and next count and move data. */
         prev->count = root().count >> 1;
         next->count = (root().count + 1) >> 1;
-        mmove(prev->data,root().data,prev->count);
+        mmove(prev->data,        root().data      ,prev->count);
         mmove(next->data,root().data + prev->count,next->count);
 
         /* Modify root part. */
@@ -217,6 +221,7 @@ class tree {
 
         root().data[1].v = next->data[0].v;
     }
+
 
     /**
      * @brief Split at pointer's x-th son.
@@ -230,7 +235,7 @@ class tree {
         visitor next = allocate();
 
         /* Update next() of prev and next.  */
-        next->state = prev->state;
+        next->state  = prev->state;
         prev->set_next(next.index());
 
         /* Update prev and next count and move data. */
@@ -244,6 +249,82 @@ class tree {
         pointer->data[x].v     = next->data[0].v;
         pointer->head(x).count = next->count;
         pointer->head(x).set_index(next.index(),node_type(next->is_inner()));
+    }
+
+    /**
+     * @brief Merge root when it has exactly 2 inner son to merge.
+     * It will decrease tree height by one.
+     * 
+     */
+    void merge_root(int x) {
+        visitor prev = x ? get_pointer(root().head(0)) : cache_pointer;
+        visitor next = x ? cache_pointer : get_pointer(root().head(1));
+
+        prev.modify();
+        next.modify();
+
+        /* Update count and copy data. */
+        root().count = prev->count + next->count;
+        mmove(          root().data,    prev->data,prev->count);
+        mmove(root().data + prev->count,next->data,next->count);
+
+        /* Recyle nodes. */
+        recycle(prev);
+        recycle(next);
+    }
+
+    /**
+     * @brief Merge 2 nodes into previous one node and recycle the second one.
+     * 
+     * @param prev 
+     * @param next 
+     */
+    void merge_node(visitor prev,visitor next) {
+        /* Update pointer first. */
+        prev.modify();
+        next.modify();
+
+        /* Relink , update count and move data. */
+        prev->state  = next->state;
+        mmove(prev->data + prev->count,next->data,next->count);
+        prev->count += next->count;
+
+        /* Recyle nodes. */
+        recycle(next);
+    }
+
+    /**
+     * @brief Try merge at pointer's x-th son.
+     * Note that pointer->count remains unchanged.
+     * 
+     * @param pointer Pointer of father node.
+     * @param    x    The subscript of the node to split.
+     * @return Whether the merge operation succeed.
+     */
+    bool try_merge(visitor pointer,int x) {
+        /* Of course , pointer must points to root now. */
+        if(pointer->count == 1) return false;
+
+        /* This require BLOCK_SIZE >= 9 */
+        if(pointer->count == 2 && cache_pointer->is_inner()) 
+        { merge_root(x); return false; }
+
+        bool flag = x != pointer->count - 1;
+
+        if(flag && x != 0) /* Merge with smaller brother. */
+            flag = pointer->head(x - 1).count > pointer->head(x + 1).count;
+
+        if(flag) { /* Merge with next node. */
+            visitor prev = cache_pointer;
+            visitor next = get_pointer(pointer->head(x + 1));
+            merge_node(prev,next);  
+            mmove(pointer->data + x + 1,pointer->data + x + 2,pointer->count - x - 2);
+        } else {   /* Merge with prev node. */
+            visitor prev = get_pointer(pointer->head(x - 1));
+            visitor next = cache_pointer;
+            merge_node(prev,next);
+            mmove(pointer->data + x,pointer->data + x + 1,pointer->count - x - 1);
+        } return true;
     }
 
    
@@ -262,6 +343,7 @@ class tree {
         mmove(next->data,prev->data + prev->count,delta);
     }
 
+
     /* Amortize part of the next node to the prev node. */
     inline void amortize_next(visitor prev,visitor next) {
         prev.modify();
@@ -277,6 +359,7 @@ class tree {
         mmove(next->data,next->data + delta,next->count);
     }
 
+
     /**
      * @brief Tries to amortize when inserting.
      * 
@@ -285,17 +368,60 @@ class tree {
      * @return 0 if amortization failed || 1 if amortization succeeded
      */
     bool insert_amortize(visitor pointer,int x) {
-        if(x != 0 && pointer->head(x - 1).count < AMORT_SIZE) {
+        bool flag[2] =  {       
+            x != pointer->count - 1 && pointer->head(x + 1).count < AMORT_SIZE,
+                   x != 0           && pointer->head(x - 1).count < AMORT_SIZE
+        };
+
+        if(flag[0] && flag[1]) /* Amortize with smaller brother. */
+            flag[pointer->head(x - 1).count > pointer->head(x + 1).count] = false;
+
+        if(flag[1]) {
             visitor prev = get_pointer(pointer->head(x - 1));
             visitor next = cache_pointer;
             amortize_next(prev,next);
             pointer->head(x - 1).count = prev->count;
             pointer->head(x).count     = next->count;
             pointer->data[x].v         = next->data[0].v;
-        } else if(x != pointer->count - 1 && pointer->head(x + 1).count < AMORT_SIZE) {
+        } else if(flag[0]) {
             visitor prev = cache_pointer;
             visitor next = get_pointer(pointer->head(x + 1));
             amortize_prev(prev,next);
+            pointer->head(x).count     = prev->count;
+            pointer->head(x + 1).count = next->count;
+            pointer->data[x + 1].v     = next->data[0].v;
+        } else return false;
+        return true;
+    }
+
+
+    /**
+     * @brief Tries to amortize when inserting.
+     * 
+     * @param pointer Pointer of father node.
+     * @param x       The subscript of the node to split.
+     * @return 0 if amortization failed || 1 if amortization succeeded
+     */
+    bool erase_amortize(visitor pointer,int x) {
+        bool flag[2] =  {       
+                   x != 0           && pointer->head(x - 1).count >= AMORT_SIZE,
+            x != pointer->count - 1 && pointer->head(x + 1).count >= AMORT_SIZE
+        };
+
+        if(flag[0] && flag[1]) /* Amortize with larger brother. */
+            flag[pointer->head(x - 1).count > pointer->head(x + 1).count] = false;
+
+        if(flag[0]) {
+            visitor prev = get_pointer(pointer->head(x - 1));
+            visitor next = cache_pointer;
+            amortize_prev(prev,next);
+            pointer->head(x - 1).count = prev->count;
+            pointer->head(x).count     = next->count;
+            pointer->data[x].v         = next->data[0].v;
+        } else if(flag[1]) {
+            visitor prev = cache_pointer;
+            visitor next = get_pointer(pointer->head(x + 1));
+            amortize_next(prev,next);
             pointer->head(x).count     = prev->count;
             pointer->head(x + 1).count = next->count;
             pointer->data[x + 1].v     = next->data[0].v;
@@ -314,9 +440,9 @@ class tree {
      *      || 0 if nothing is changed
      */
     bool insert_outer(header &head,const key_t &key,const T &val) {
-        /* Binaray searching. */
+        /* Binary searching. */
         visitor pointer = get_pointer(head);
-        if(head.count != pointer->count) throw error("outer");
+        if(head.count != pointer->count) throw error("outer insert");
         int x = binary_search(pointer->data,key,val,0,head.count);
         if(x < 0) return false; /* Find exactly the node. */
 
@@ -324,7 +450,7 @@ class tree {
         pointer.modify();
 
         /* Insert the key-value pair into the node. */
-        mmove(pointer->data + x + 1,pointer->data + x,pointer->count - x);
+        mmove(pointer->data + x + 1,pointer->data + x,head.count - x);
         pointer->data[x].copy(key,val);
         head.count = ++pointer->count;
 
@@ -332,6 +458,7 @@ class tree {
         cache_pointer = pointer;
         return true;
     }
+
 
     /**
      * @brief Insert at an inner node.
@@ -347,9 +474,9 @@ class tree {
         if(!head.is_inner()) return insert_outer(head,key,val);
 
 
-        /* Binaray searching. */
+        /* Binary searching. */
         visitor pointer = get_pointer(head);
-        if(head.count != pointer->count) throw error("inner");
+        if(head.count != pointer->count) throw error("inner insert");
         int x = binary_search(pointer->data,key,val,0,head.count);
         if(x < 0) return false; /* Find exactly the node. */
         else if(x > 0) --x;
@@ -379,6 +506,80 @@ class tree {
         return true;
     }
 
+
+    /**
+     * @brief Insert at an outer node.
+     * 
+     * @param head Head of the outer node.
+     * @param key  Key to be inserted.
+     * @param val  Value to be inserted.
+     * @return 1 if successfully inserted , which means father node is modified 
+     *      || 0 if nothing is changed
+     */
+    bool erase_outer(header &head,const key_t &key,const T &val) {
+        /* Binary searching. */
+        visitor pointer = get_pointer(head);
+        if(head.count != pointer->count) throw error("outer erase");
+        int x = ~binary_search(pointer->data,key,val,0,head.count);
+        if(x < 0) return false; /* Don't find exactly the node. */
+
+        /* Data will be modified. */
+        pointer.modify();
+
+        /* Insert the key-value pair into the node. */
+        mmove(pointer->data + x,pointer->data + x + 1,head.count - x - 1);
+        head.count = --pointer->count;
+
+        /* Move the pointer to cache. */
+        cache_pointer = pointer;
+        return true;
+    }
+
+
+    /**
+     * @brief Insert at an inner node.
+     * 
+     * @param head Head of the outer node.
+     * @param key  Key to be inserted.
+     * @param val  Value to be inserted.
+     * @return 1 if successfully inserted , which means father node is modified
+     *      || 0 if nothing is changed
+     */
+    bool erase(header &head,const key_t &key,const T &val) {
+        /* If outer file , start insertion. */
+        if(!head.is_inner()) return erase_outer(head,key,val);
+
+        /* Binary searching. */
+        visitor pointer = get_pointer(head);
+        if(head.count != pointer->count) throw error("inner erase");
+        int x = binary_search(pointer->data,key,val,0,head.count);
+
+        if(x == 0) return false; /* Smaller than the smallest node. */
+        else if(x > 0) --x; /* Move the position */
+
+        /* Insert into node now. */
+        if(!erase(pointer->head(x > 0 ? x : ~x ),key,val)) return false;
+
+        /* Need to adjust the parent now. */
+        pointer.modify();
+
+        /* Find exactly the node , so update smallest. */
+        if(x < 0) pointer->data[x = ~x].v = cache_pointer->data[0].v;
+
+        /* Son is not that empty , so nothing is done to this node. */
+        if(cache_pointer->count > MERGE_SIZE) return false;
+
+        /* Current node might require modification. */
+        if(erase_amortize(pointer,x)) return false;
+
+        /* Merge the node's son now. */
+        if(try_merge(pointer,x)) { 
+            head.count    = --pointer->count;
+            cache_pointer = pointer;
+        } return true;
+    }
+
+
     /* DEBUG USE ONLY! */
     void print_outer(header head) {
         visitor pointer = get_pointer(head);
@@ -392,6 +593,7 @@ class tree {
         std::cout << "Next index x: " << pointer->next();
         std::cout << "\n--------------------------------\n";
     }
+
 
     /* DEBUG USE ONLY! */
     void print(header head) {
@@ -453,6 +655,18 @@ class tree {
         if(root().count > BLOCK_SIZE) split_root();
     }
 
+    /* Erase a key-value pair from the node. */
+    void erase(const key_t &key,const T &val) {
+        /* Empty Tree special case. */
+        if(empty()) return;
+        
+        /* Nothing should be done to root node case. */
+        if(!erase(root(),key,val)) return;
+
+        if(cache_pointer->count == 0)
+            root().count = 0;
+    }
+
     /* Find all value-type binded to key. */
     void find(const key_t &key,return_list &v) {
         if(empty()) return;
@@ -483,10 +697,6 @@ class tree {
         }
     }
 
-    /* Erase a key-value pair from the node. */
-    void erase(const key_t &key,const T &val) {
-        if(empty()) return;
-    }
 
     /* DEBUG USE ONLY! */
     void check_function() { if(!empty()) return print(root()); }
