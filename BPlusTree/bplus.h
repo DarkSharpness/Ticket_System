@@ -32,15 +32,14 @@ noexcept { return strcmp(lhs.base(),rhs.base()) < 0; }
 
 namespace b_plus {
 
-
-using key_t = string <12>;
+using key_t = string <68>;
 using   T   = int;
 using key_comp = Compare <key_t>;
 using val_comp = Compare   <T>;
 
 constexpr int TABLE_SIZE = 3000;
 constexpr int CACHE_SIZE = 10000; // NO LESS THAN tree_height * 2 + 2
-constexpr int BLOCK_SIZE = 9;
+constexpr int BLOCK_SIZE = 101;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int SPLIT_SIZE = (BLOCK_SIZE + 1) / 2;
 constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
@@ -62,7 +61,6 @@ class tree {
     struct tuple_t {
         value_t v; /* Samllest pair of target node. */
         header head;  /* A small header. */
-
         /* Copying header info and value. */
         inline void copy(const value_t &__v,header __h)
         { head = __h; v = __v;}
@@ -109,8 +107,8 @@ class tree {
                 TABLE_SIZE,
                 CACHE_SIZE,
                 node_reader,
-                node_writer,
-                sizeof(node)
+                node_writer
+                // sizeof(node)
             >;
 
     using visitor = typename node_file_t::visitor;
@@ -317,13 +315,15 @@ class tree {
         if(flag) { /* Merge with next node. */
             visitor prev = cache_pointer;
             visitor next = get_pointer(pointer->head(x + 1));
-            merge_node(prev,next);  
+            merge_node(prev,next);
             mmove(pointer->data + x + 1,pointer->data + x + 2,pointer->count - x - 2);
+            pointer->head(x).count = prev->count;
         } else {   /* Merge with prev node. */
             visitor prev = get_pointer(pointer->head(x - 1));
             visitor next = cache_pointer;
             merge_node(prev,next);
             mmove(pointer->data + x,pointer->data + x + 1,pointer->count - x - 1);
+            pointer->head(x - 1).count = prev->count;
         } return true;
     }
 
@@ -552,19 +552,24 @@ class tree {
         /* Binary searching. */
         visitor pointer = get_pointer(head);
         if(head.count != pointer->count) throw error("inner erase");
+        
         int x = binary_search(pointer->data,key,val,0,head.count);
 
         if(x == 0) return false; /* Smaller than the smallest node. */
         else if(x > 0) --x; /* Move the position */
 
         /* Insert into node now. */
-        if(!erase(pointer->head(x > 0 ? x : ~x ),key,val)) return false;
+        bool flag = erase(pointer->head(x < 0 ? ~x : x),key,val);
+
+        /* Nothing should be done. */
+        if(x >= 0 && !flag) return false;
 
         /* Need to adjust the parent now. */
         pointer.modify();
 
         /* Find exactly the node , so update smallest. */
         if(x < 0) pointer->data[x = ~x].v = cache_pointer->data[0].v;
+        if(!flag) return false; /* Only update smallest is enough. */
 
         /* Son is not that empty , so nothing is done to this node. */
         if(cache_pointer->count > MERGE_SIZE) return false;
@@ -583,6 +588,7 @@ class tree {
     /* DEBUG USE ONLY! */
     void print_outer(header head) {
         visitor pointer = get_pointer(head);
+        if(head.count != pointer->count) throw error("Outer Mis-match");
         std::cout << "Outer block "  << head.real_index() << " :\n";
         for(int i = 0 ; i != head.count ; ++i)
             std::cout << "Leaf " << i << ": || key: "
@@ -600,7 +606,7 @@ class tree {
         if(!head.is_inner()) return print_outer(head);
         visitor pointer = get_pointer(head);
         if(head.count != pointer->count) 
-            throw error("Data MisMatch!!!");
+            throw error("Inner Mis-Match!!!");
 
         std::cout << "Inner block "  << head.real_index() << " :\n";
         for(int i = 0 ; i != head.count ; ++i)
