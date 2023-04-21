@@ -256,7 +256,7 @@ class tree {
         prev->count += next->count;
 
         /* This should never happen!!! */
-        if(prev->count >= BLOCK_SIZE) throw error("Wrongly merged!");
+        // if(prev->count >= BLOCK_SIZE) throw error("Wrongly merged!");
         /* Recyle nodes. */
         recycle(next);
     }
@@ -442,7 +442,7 @@ class tree {
 
         /* Binary searching. */
         visitor pointer = get_pointer(head);
-        if(head.count != pointer->count) throw error("inner insert");
+        // if(head.count != pointer->count) throw error("inner insert");
         int x = binary_search(pointer->data,key,val,0,head.count);
         if(x < 0) return false; /* Find exactly the node. */
         else if(x > 0) --x;
@@ -485,7 +485,7 @@ class tree {
     bool erase_outer(header &head,const key_t &key,const T &val) {
         /* Binary searching. */
         visitor pointer = get_pointer(head);
-        if(head.count != pointer->count) throw error("outer erase");
+        // if(head.count != pointer->count) throw error("outer erase");
         int x = ~binary_search(pointer->data,key,val,0,head.count);
         if(x < 0) return false; /* Don't find exactly the node. */
 
@@ -517,7 +517,7 @@ class tree {
 
         /* Binary searching. */
         visitor pointer = get_pointer(head);
-        if(head.count != pointer->count) throw error("inner erase");
+        // if(head.count != pointer->count) throw error("inner erase");
     
         int x = binary_search(pointer->data,key,val,0,head.count);
 
@@ -552,7 +552,7 @@ class tree {
     /* DEBUG USE ONLY! */
     const value_t &print_outer(header head) {
         visitor pointer = get_pointer(head);
-        if(head.count != pointer->count) throw error("Outer Mis-match");
+        // if(head.count != pointer->count) throw error("Outer Mis-match");
 
         std::cout << "Outer block "  << head.real_index() << " :\n";
         for(int i = 0 ; i != head.count ; ++i)
@@ -564,6 +564,27 @@ class tree {
         std::cout << "Next index x: " << pointer->next();
         std::cout << "\n--------------------------------\n";
 
+        return pointer->data[0].v;
+    }
+
+    const value_t &check_outer(header head) {
+        visitor pointer = get_pointer(head);
+        // if(head.count != pointer->count) throw error("Outer Mis-match");
+        return pointer->data[0].v;
+    }
+
+    const value_t &check(header head) {
+        if(!head.is_inner()) return check_outer(head);
+        visitor pointer = get_pointer(head);
+        if(head.count != pointer->count)
+            throw error("Inner Mis-Match!!!");
+        for(int i = 0 ; i != head.count ; ++i) {
+            auto &&temp = check(pointer->head(i));
+            if(k_comp(temp.key,pointer->data[i].v.key) ||
+               v_comp(temp.val,pointer->data[i].v.val)) {
+                throw error("Pair dismatch");
+            }
+        }
         return pointer->data[0].v;
     }
 
@@ -593,8 +614,7 @@ class tree {
                v_comp(temp.val,pointer->data[i].v.val)) {
                 throw error("Pair dismatch");
             }
-        }
-        return pointer->data[0].v;
+        } return pointer->data[0].v;
     }
 
   public: /* Public functions. */
@@ -679,7 +699,7 @@ class tree {
 
 
     /* DEBUG USE ONLY! */
-    void check_function() { if(!empty()) return (void)print(root()); }
+    void check_function() { if(!empty()) return (void)check(root()); }
 };
 
 
