@@ -14,7 +14,6 @@ namespace dark {
  * @tparam T The inner data type.
  * @tparam table_size Table size of inner LRU_map.
  * @tparam cache_size Cache size of inner LRU_map.
- * @tparam bias Bias of data in seekg and seekp.
  * @tparam i_func Custom reading function wrapper.
  * @tparam o_func Custom writing function wrapper.
  */
@@ -46,7 +45,7 @@ class file_manager {
             write_object(__t->second,__t->first.index);
 
         /* Insert the element after iterator and update iterator. */
-        iter = map.insert_after(state,cache,iter,map.size() == cache_size);
+        iter = map.insert_after(state,cache,iter,map.size() == cache_size,state.state);
     }
 
     /* Locate the position for reading. */
@@ -137,9 +136,7 @@ class file_manager {
     /* Allocate a new node for further modification. */
     visitor allocate() {
         int index = bin.allocate(); /* Allocate a new node. */
-
-        auto iter = map.find_pre({index,0}); /* Iterator before {index}. */
-
+        auto iter = map.find_pre({index,1}); /* Iterator before {index}. */
         /* Of course, newly allocated node will be modified. */
         insert_map(iter,{index,1});
         return {iter.next_data()};

@@ -4,10 +4,8 @@
 
 signed main() {
     using tree = dark::b_plus::tree;
-
     typename tree::return_list data;
     dark::b_plus::tree t("a");
-
     int n = dark::read <int> ();
     dark::string <68> str;
     while(n--) {
@@ -29,6 +27,5 @@ signed main() {
             }
         }
     }
-
     return 0;
 }

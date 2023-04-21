@@ -3,14 +3,6 @@
 
 namespace dark {
 
-
-struct error {
-    error(std::string str) {
-        freopen("CON","w",stdout);
-        std::cout << str << '\n';
-    }
-};
-
 template <size_t __n>
 struct string {
     char str[__n];
@@ -38,10 +30,9 @@ using key_comp = Compare <key_t>;
 using val_comp = Compare   <T>;
 
 constexpr int TABLE_SIZE = 3000;
-constexpr int CACHE_SIZE = 10000; // NO LESS THAN tree_height * 2 + 2
+constexpr int CACHE_SIZE = 100000; // NO LESS THAN tree_height * 2 + 2
 constexpr int BLOCK_SIZE = 101;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
-constexpr int SPLIT_SIZE = (BLOCK_SIZE + 1) / 2;
 constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
 constexpr int  MAX_SIZE  = 300000;
 
@@ -108,7 +99,6 @@ class tree {
                 CACHE_SIZE,
                 node_reader,
                 node_writer
-                // sizeof(node)
             >;
 
     using visitor = typename node_file_t::visitor;
@@ -249,67 +239,48 @@ class tree {
         pointer->head(x).set_index(next.index(),node_type(next->is_inner()));
     }
 
-    /**
-     * @brief Merge root when it has exactly 2 inner son to merge.
-     * It will decrease tree height by one.
-     * 
-     */
-    void merge_root(int x) {
-        visitor prev = x ? get_pointer(root().head(0)) : cache_pointer;
-        visitor next = x ? cache_pointer : get_pointer(root().head(1));
-
-        prev.modify();
-        next.modify();
-
-        /* Update count and copy data. */
-        root().count = prev->count + next->count;
-        mmove(          root().data,    prev->data,prev->count);
-        mmove(root().data + prev->count,next->data,next->count);
-
-        /* Recyle nodes. */
-        recycle(prev);
-        recycle(next);
-    }
 
     /**
      * @brief Merge 2 nodes into previous one node and recycle the second one.
      * 
-     * @param prev 
-     * @param next 
+     * @param prev Previous node.
+     * @param next Next     node.
      */
     void merge_node(visitor prev,visitor next) {
         /* Update pointer first. */
         prev.modify();
-        next.modify();
 
         /* Relink , update count and move data. */
         prev->state  = next->state;
         mmove(prev->data + prev->count,next->data,next->count);
         prev->count += next->count;
 
+        /* This should never happen!!! */
+        if(prev->count >= BLOCK_SIZE) throw error("Wrongly merged!");
         /* Recyle nodes. */
         recycle(next);
     }
 
+
     /**
      * @brief Try merge at pointer's x-th son.
      * Note that pointer->count remains unchanged.
+     * Fail only when pointer points to root node 
+     * with less than 2 sons.
      * 
      * @param pointer Pointer of father node.
      * @param    x    The subscript of the node to split.
-     * @return Whether the merge operation succeed.
      */
-    bool try_merge(visitor pointer,int x) {
+    void erase_merge(visitor pointer,int x) {
         /* Of course , pointer must points to root now. */
-        if(pointer->count == 1) return false;
-
-        /* This require BLOCK_SIZE >= 9 */
-        if(pointer->count == 2 && cache_pointer->is_inner()) 
-        { merge_root(x); return false; }
-
+        if(pointer->count == 1) {
+            if(pointer.index() != 0) throw error("Erase merge!");
+            else if(cache_pointer->count != 0) ++pointer->count;
+            return;
+        }
+        /* Merge with smaller brother. */
         bool flag = x != pointer->count - 1;
-
-        if(flag && x != 0) /* Merge with smaller brother. */
+        if(flag && x != 0) 
             flag = pointer->head(x - 1).count > pointer->head(x + 1).count;
 
         if(flag) { /* Merge with next node. */
@@ -324,22 +295,20 @@ class tree {
             merge_node(prev,next);
             mmove(pointer->data + x,pointer->data + x + 1,pointer->count - x - 1);
             pointer->head(x - 1).count = prev->count;
-        } return true;
+        }
     }
 
-   
+
     /* Amortize part of the prev node to the next node. */
     inline void amortize_prev(visitor prev,visitor next) {
         prev.modify();
         next.modify();
 
+        /* Move some of the data. */
         int delta = (prev->count - next->count) >> 1;
-
         mmove(next->data + delta,next->data,next->count);
-
         prev->count -= delta;
         next->count += delta;
-
         mmove(next->data,prev->data + prev->count,delta);
     }
 
@@ -349,13 +318,11 @@ class tree {
         prev.modify();
         next.modify();
 
+        /* Move some of the data. */
         int delta = (next->count - prev->count) >> 1;
-
         mmove(prev->data + prev->count,next->data,delta);
-
         prev->count += delta;
         next->count -= delta;
-
         mmove(next->data,next->data + delta,next->count);
     }
 
@@ -442,7 +409,7 @@ class tree {
     bool insert_outer(header &head,const key_t &key,const T &val) {
         /* Binary searching. */
         visitor pointer = get_pointer(head);
-        if(head.count != pointer->count) throw error("outer insert");
+        // if(head.count != pointer->count) throw error("outer insert");
         int x = binary_search(pointer->data,key,val,0,head.count);
         if(x < 0) return false; /* Find exactly the node. */
 
@@ -472,7 +439,6 @@ class tree {
     bool insert(header &head,const key_t &key,const T &val) {
         /* If outer file , start insertion. */
         if(!head.is_inner()) return insert_outer(head,key,val);
-
 
         /* Binary searching. */
         visitor pointer = get_pointer(head);
@@ -552,43 +518,42 @@ class tree {
         /* Binary searching. */
         visitor pointer = get_pointer(head);
         if(head.count != pointer->count) throw error("inner erase");
-        
+    
         int x = binary_search(pointer->data,key,val,0,head.count);
 
+        bool flag = false;       /* Whether to update the smallest. */
         if(x == 0) return false; /* Smaller than the smallest node. */
-        else if(x > 0) --x; /* Move the position */
+        else if(x > 0) --x;      /* Move the position */
+        else x = ~x,flag = true; /* Find exactly the smallest in the node. */
 
-        /* Insert into node now. */
-        bool flag = erase(pointer->head(x < 0 ? ~x : x),key,val);
-
-        /* Nothing should be done. */
-        if(x >= 0 && !flag) return false;
+        /* Erase from the node now. */
+        if(!erase(pointer->head(x),key,val)) return false;
 
         /* Need to adjust the parent now. */
         pointer.modify();
 
-        /* Find exactly the node , so update smallest. */
-        if(x < 0) pointer->data[x = ~x].v = cache_pointer->data[0].v;
-        if(!flag) return false; /* Only update smallest is enough. */
+        /* If exactly smallest , related data will be updated. */
+        if(flag) pointer->data[x].v = cache_pointer->data[0].v;
 
-        /* Son is not that empty , so nothing is done to this node. */
-        if(cache_pointer->count > MERGE_SIZE) return false;
+        /* Son is not that empty , only when data[0] is updated. */
+        if(cache_pointer->count > MERGE_SIZE) return flag && !x;
 
         /* Current node might require modification. */
-        if(erase_amortize(pointer,x)) return false;
+        if(erase_amortize(pointer,x)) return flag && !x;
 
         /* Merge the node's son now. */
-        if(try_merge(pointer,x)) { 
-            head.count    = --pointer->count;
-            cache_pointer = pointer;
-        } return true;
+        erase_merge(pointer,x);
+        head.count    = --pointer->count;
+        cache_pointer = pointer;
+        return true;
     }
 
 
     /* DEBUG USE ONLY! */
-    void print_outer(header head) {
+    const value_t &print_outer(header head) {
         visitor pointer = get_pointer(head);
         if(head.count != pointer->count) throw error("Outer Mis-match");
+
         std::cout << "Outer block "  << head.real_index() << " :\n";
         for(int i = 0 ; i != head.count ; ++i)
             std::cout << "Leaf " << i << ": || key: "
@@ -598,14 +563,16 @@ class tree {
                       << " ||\n";
         std::cout << "Next index x: " << pointer->next();
         std::cout << "\n--------------------------------\n";
+
+        return pointer->data[0].v;
     }
 
 
     /* DEBUG USE ONLY! */
-    void print(header head) {
+    const value_t &print(header head) {
         if(!head.is_inner()) return print_outer(head);
         visitor pointer = get_pointer(head);
-        if(head.count != pointer->count) 
+        if(head.count != pointer->count)
             throw error("Inner Mis-Match!!!");
 
         std::cout << "Inner block "  << head.real_index() << " :\n";
@@ -620,15 +587,24 @@ class tree {
         std::cout << "Next index x: " << pointer->next();
         std::cout << "\n--------------------------------\n";
 
-        for(int i = 0 ; i != head.count ; ++i)
-            print(pointer->head(i));
+        for(int i = 0 ; i != head.count ; ++i) {
+            auto &&temp = print(pointer->head(i));
+            if(k_comp(temp.key,pointer->data[i].v.key) ||
+               v_comp(temp.val,pointer->data[i].v.val)) {
+                throw error("Pair dismatch");
+            }
+        }
+        return pointer->data[0].v;
     }
 
   public: /* Public functions. */
 
+
     using return_list = dark::trivial_array <T>;
 
+
     tree() = delete;
+
 
     /* Initialize the tree. */
     tree(std::string path1) :
@@ -644,56 +620,54 @@ class tree {
         }
     }
 
+
     /* Update root info if modified. */
     ~tree() { if(root_state().is_modified()) file.write_object(root(),0); }
 
+
     /* Return whether the tree is empty. */
     bool empty() const noexcept { return !__root_pair.second.count; }
+
 
     /* Insert a key-value pair into the node. */
     void insert(const key_t &key,const T &val) {
         /* Empty Tree special case. */
         if(empty()) return insert_root(key,val);
-
         /* Nothing should be done to root node case. */
         if(!insert(root(),key,val)) return;
-
+        /* When the node under root is too full. */
         if(root().count > BLOCK_SIZE) split_root();
     }
+
 
     /* Erase a key-value pair from the node. */
     void erase(const key_t &key,const T &val) {
         /* Empty Tree special case. */
         if(empty()) return;
-        
         /* Nothing should be done to root node case. */
-        if(!erase(root(),key,val)) return;
-
-        if(cache_pointer->count == 0)
-            root().count = 0;
+        else erase(root(),key,val);
     }
+
 
     /* Find all value-type binded to key. */
     void find(const key_t &key,return_list &v) {
         if(empty()) return;
         header head = root();
-
         /* Find the real inner node. */
         while(head.is_inner()) {
             visitor pointer = get_pointer(head);
             int x = lower_bound(pointer->data + 1,key,0,head.count - 1);
             head = pointer->head(x);
         }
-
         /* The real outer node. */
         visitor pointer = get_pointer(head);
         int x = lower_bound(pointer->data,key,0,head.count);
-
+        /* Find in the first block. */
         while(x != head.count) {
             if(k_comp(key,pointer->data[x].v.key)) return;
             v.push_back(pointer->data[x++].v.val);
         }
-
+        /* Find in the second block. */
         while(pointer->next() != MAX_SIZE) {
             pointer = get_pointer(*pointer); x = 0;
             while(x != pointer->count){
@@ -705,7 +679,7 @@ class tree {
 
 
     /* DEBUG USE ONLY! */
-    void check_function() { if(!empty()) return print(root()); }
+    void check_function() { if(!empty()) return (void)print(root()); }
 };
 
 

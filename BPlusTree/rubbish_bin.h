@@ -20,12 +20,12 @@ class rubbish_bin {
   public:
 
     /* Initialize rubbish bin. */
-    rubbish_bin(std::string __bin) noexcept : 
+    rubbish_bin(std::string __bin) noexcept :
         bin_file(__bin,std::ios::in | std::ios::out | std::ios::binary) {
         if(!bin_file.good()) {
             bin_file.close(); bin_file.open(__bin,std::ios::out | std::ios::binary);
-            const char buffer[sizeof(size_t) << 1] = {};
-            bin_file.write(buffer,sizeof(buffer));
+            std::pair <size_t,size_t> buffer(0,0);
+            bin_file.write((char *)&buffer,sizeof(buffer));
             total = 0;
         } else {
             /* Read buffer. */
@@ -41,8 +41,7 @@ class rubbish_bin {
 
     /* Write bin data to disk. */
     ~rubbish_bin() {
-        std::pair <size_t,size_t> buffer;
-        buffer = {total,bin_array.size()};
+        std::pair <size_t,size_t> buffer(total,bin_array.size());
         bin_file.seekp(0);
         bin_file.write((char *)&buffer,sizeof(buffer));
         bin_file.write((char *)bin_array.data(),buffer.second * sizeof(int));

@@ -62,7 +62,7 @@ class LRU_map {
      * @param __t New value to be inserted.
      * @param __i Pointer before position to be inserted. __i->real == nullptr.
      */
-    void erase_back(const key_t &__k,const T &__t,baseptr &__i) {
+    void erase_back(const key_t &__k,const T &__t,baseptr &__i,bool useless) {
         baseptr __p = find_pre(last()->first).__p;
 
         list::delink(static_cast <pointer> (__p->real));
@@ -74,17 +74,21 @@ class LRU_map {
             __i->real->real = nullptr;
         }
 
-        static_cast <pointer> (__i->real)->data.first  = __k;
-        memcpy(&static_cast <pointer> (__i->real)->data.second,
-                &__t,
-                sizeof(T));
+        static_cast <pointer> (__i->real)->data.first = __k;
+        if(!useless) memcpy(&static_cast <pointer> (__i->real)->data.second,
+                            &__t,
+                            sizeof(T));
     }
 
-    baseptr allocate(const key_t &__k,const T &__v) {
+    baseptr allocate(const key_t &__k,const T &__v,bool useless) {
         ++impl.count;
         if(cache.real) { /* Allocate from cache. */
             baseptr temp = cache.real; 
             cache.real   = cache.real->real;
+            static_cast <pointer> (temp)->data.first = __k;
+            if(!useless) memcpy(&static_cast <pointer> (temp)->data.second,
+                                &__v,
+                                sizeof(T));
             return temp;
         } else return impl.alloc(hash::forward_tag(),__k,__v);
     }
@@ -112,12 +116,13 @@ class LRU_map {
     { return insert_after(__k,__t,find_pre(__k),flag); }
 
     /* Insert after given iterator. Flag to determine whether to erase_back. */
-    iterator insert_after(const key_t &__k,const T &__t,iterator iter,bool flag = false) {
+    iterator insert_after(const key_t &__k,const T &__t,iterator iter,
+                          bool flag = false,bool useless = false) {
         baseptr __p = iter.__p;
         if(__p->real) return iter;
 
-        if(flag) erase_back(__k,__t,__p);
-        else __p->real = allocate(__k,__t);
+        if(flag) erase_back(__k,__t,__p,useless);
+        else __p->real = allocate(__k,__t,useless);
 
         list::link_before(&header,static_cast <pointer> (__p->real));
         return {__p};

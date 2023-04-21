@@ -38,12 +38,13 @@ class trivial_array : private std::allocator <value_t>  {
     
     /* Construct a new %array with __n elements' space filled 0. */
     trivial_array(size_t __n,std::nullptr_t)
-    : trivial_array(__n) { memset(head,0,__n * sizeof(value_t)); }
+    : trivial_array(__n) { memset(head,0,__n * sizeof(value_t)); tail = term; }
 
     /* Construct a new %array from an initializer_list. */
     trivial_array(std::initializer_list <value_t> __l) 
         : trivial_array(__l.size()) {
         memcpy(head,__l.begin(),size() * sizeof(value_t));
+        tail = term;
     }
 
     /**

@@ -8,8 +8,15 @@ namespace dark {
 
 enum class node_type : bool  { INNER = 1,OUTER = 0 };
 
+int debug_n = 0;
 
-
+struct error {
+    error(std::string str) {
+        freopen("CON","w",stdout);
+        std::cout << debug_n << '\n';
+        std::cout << str << '\n';
+    }
+};
 
 /* Simple file_state wrapper. Use highest bit to store modification state. */
 struct file_state {
