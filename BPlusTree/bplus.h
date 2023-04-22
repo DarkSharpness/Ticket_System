@@ -271,7 +271,7 @@ class tree {
         visitor prev = x ? get_pointer(root().head(0)) : cache_pointer;
         visitor next = x ? cache_pointer : get_pointer(root().head(1));
 
-        root().count = prev->count + next->count;
+        root().count = prev->count + next->count + 1;
         mmove(      root().data        ,prev->data,prev->count);
         mmove(root().data + prev->count,next->data,next->count);
 
@@ -293,7 +293,7 @@ class tree {
         /* Of course , pointer must points to root now. */
         if(pointer->count == 2 && cache_pointer->is_inner()) {
             if(pointer.index() != 0) while(1);
-            merge_root(x);
+            return merge_root(x);
         }
         if(pointer->count == 1) {
             if(pointer.index() != 0) throw error("Erase merge!");
