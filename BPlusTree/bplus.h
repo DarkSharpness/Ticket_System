@@ -33,7 +33,7 @@ using val_comp = Compare   <T>;
 
 constexpr int TABLE_SIZE = 10000;
 constexpr int CACHE_SIZE = 100000; // NO LESS THAN tree_height * 2 + 2
-constexpr int BLOCK_SIZE = 9;
+constexpr int BLOCK_SIZE = 101;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
 constexpr int  MAX_SIZE  = 300000;
