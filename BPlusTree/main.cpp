@@ -26,7 +26,6 @@ signed main() {
                 putchar('\n');
             }
         }
-        dark::writeline(n);
     }
     return 0;
 }
