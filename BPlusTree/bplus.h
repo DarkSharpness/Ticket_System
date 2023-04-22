@@ -33,7 +33,7 @@ using val_comp = Compare   <T>;
 
 constexpr int TABLE_SIZE = 10000;
 constexpr int CACHE_SIZE = 100000; // NO LESS THAN tree_height * 2 + 2
-constexpr int BLOCK_SIZE = 101;
+constexpr int BLOCK_SIZE = 9;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
 constexpr int  MAX_SIZE  = 300000;
@@ -257,9 +257,25 @@ class tree {
         mmove(prev->data + prev->count,next->data,next->count);
         prev->count += next->count;
 
-        /* This should never happen!!! */
-        // if(prev->count >= BLOCK_SIZE) throw error("Wrongly merged!");
         /* Recyle nodes. */
+        recycle(next);
+    }
+
+
+    /**
+     * @brief Merge root's 2 sons.
+     * 
+     * @param x The son id in cache_pointer.
+     */
+    void merge_root(int x) {
+        visitor prev = x ? get_pointer(root().head(0)) : cache_pointer;
+        visitor next = x ? cache_pointer : get_pointer(root().head(1));
+
+        root().count = prev->count + next->count;
+        mmove(      root().data        ,prev->data,prev->count);
+        mmove(root().data + prev->count,next->data,next->count);
+
+        recycle(prev);
         recycle(next);
     }
 
@@ -275,11 +291,16 @@ class tree {
      */
     void erase_merge(visitor pointer,int x) {
         /* Of course , pointer must points to root now. */
+        if(pointer->count == 2 && cache_pointer->is_inner()) {
+            if(pointer.index() != 0) while(1);
+            merge_root(x);
+        }
         if(pointer->count == 1) {
             if(pointer.index() != 0) throw error("Erase merge!");
             else if(cache_pointer->count != 0) ++pointer->count;
             return;
         }
+
         /* Merge with smaller brother. */
         bool flag = x != pointer->count - 1;
         if(flag && x != 0) 
