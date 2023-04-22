@@ -26,7 +26,7 @@ template <
     size_t page_size = ((sizeof(T) - 1) / 4096 + 1) * 4096
 > 
 class file_manager {
-  private:
+  public:
     using map_t    = LRU_map <file_state,T,table_size>;
     using iterator = typename map_t::iterator;
 

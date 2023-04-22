@@ -13,6 +13,7 @@ namespace dark {
  * 
  */
 class rubbish_bin {
+  public:
     std::fstream bin_file; /* First 16 Byte : total and count. Then data array. */
     size_t total; /* Count of nodes. */
     trivial_array <int> bin_array;  /* Cache of unused nodes. */
@@ -34,6 +35,9 @@ class rubbish_bin {
 
             /* Update info. */
             total = buffer.first;
+
+            buffer.second = 0; // DEBUG USE ONLY!
+
             bin_array.resize(buffer.second);
             bin_file.read((char *)bin_array.data(),buffer.second * sizeof(int));
         }
@@ -42,20 +46,23 @@ class rubbish_bin {
     /* Write bin data to disk. */
     ~rubbish_bin() {
         std::pair <size_t,size_t> buffer(total,bin_array.size());
-        bin_file.seekp(0);
-        bin_file.write((char *)&buffer,sizeof(buffer));
-        bin_file.write((char *)bin_array.data(),buffer.second * sizeof(int));
+        // bin_file.seekp(0);
+        // bin_file.write((char *)&buffer,sizeof(buffer));
+        // bin_file.write((char *)bin_array.data(),buffer.second * sizeof(int));
         bin_file.close();
     }
 
     /* Allocate one index. */
     int allocate() {
-        if(!bin_array.empty()) return bin_array.pop_back();
-        else return total++;
+        // if(!bin_array.empty() && false) return bin_array.pop_back();
+        // else 
+        return total++;
     }
 
     /* Recyle one index. */
-    void recycle(int index) { bin_array.push_back(index); }
+    void recycle(int index) {
+        // bin_array.push_back(index);
+    }
 
     /* Return count of all nodes. */
     size_t size() const noexcept { return total; }

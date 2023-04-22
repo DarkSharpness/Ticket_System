@@ -20,7 +20,7 @@ template <
     size_t kTABLESIZE,
     class Hash    = std::hash <key_t>,
     class Compare = std::equal_to <key_t>
-> 
+>
 class LRU_map {
   public:
     using value_t = std::pair <key_t,T>;
@@ -83,8 +83,8 @@ class LRU_map {
     baseptr allocate(const key_t &__k,const T &__v,bool useless) {
         ++impl.count;
         if(cache.real) { /* Allocate from cache. */
-            baseptr temp = cache.real; 
-            cache.real   = cache.real->real;
+            baseptr temp = cache.real;
+            cache.real   = temp->real;
             static_cast <pointer> (temp)->data.first = __k;
             if(!useless) memcpy(&static_cast <pointer> (temp)->data.second,
                                 &__v,

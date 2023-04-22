@@ -1,5 +1,7 @@
 #include "file_manager.h"
-
+#include <algorithm>
+#include <vector>
+#include <set>
 
 namespace dark {
 
@@ -29,9 +31,9 @@ using   T   = int;
 using key_comp = Compare <key_t>;
 using val_comp = Compare   <T>;
 
-constexpr int TABLE_SIZE = 3000;
+constexpr int TABLE_SIZE = 10000;
 constexpr int CACHE_SIZE = 100000; // NO LESS THAN tree_height * 2 + 2
-constexpr int BLOCK_SIZE = 101;
+constexpr int BLOCK_SIZE = 9;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
 constexpr int  MAX_SIZE  = 300000;
@@ -98,7 +100,8 @@ class tree {
                 TABLE_SIZE,
                 CACHE_SIZE,
                 node_reader,
-                node_writer
+                node_writer,
+                sizeof(node)
             >;
 
     using visitor = typename node_file_t::visitor;
@@ -236,7 +239,7 @@ class tree {
             mmove(pointer->data + x + 1,pointer->data + x,pointer->count - x);
         pointer->data[x].v     = next->data[0].v;
         pointer->head(x).count = next->count;
-        pointer->head(x).set_index(next.index(),node_type(next->is_inner()));
+        pointer->head(x).state = prev->state;
     }
 
 
@@ -370,7 +373,7 @@ class tree {
      * @return 0 if amortization failed || 1 if amortization succeeded
      */
     bool erase_amortize(visitor pointer,int x) {
-        bool flag[2] =  {       
+        bool flag[2] =  {
                    x != 0           && pointer->head(x - 1).count >= AMORT_SIZE,
             x != pointer->count - 1 && pointer->head(x + 1).count >= AMORT_SIZE
         };
@@ -569,7 +572,7 @@ class tree {
 
     const value_t &check_outer(header head) {
         visitor pointer = get_pointer(head);
-        // if(head.count != pointer->count) throw error("Outer Mis-match");
+        if(head.count != pointer->count) throw error("Outer Mis-match");
         return pointer->data[0].v;
     }
 
@@ -588,6 +591,23 @@ class tree {
         return pointer->data[0].v;
     }
 
+    const value_t &get_array(header head,std::vector <int> &t,std::set <int> &s) {
+        if(head.real_index() && s.count(head.real_index())) throw error("fucked");
+        s.insert(head.real_index());
+        if(!head.is_inner()) return check_outer(head);
+        visitor pointer = get_pointer(head);
+        if(head.count != pointer->count)
+            throw error("Inner Mis-Match!!!");
+        for(int i = 0 ; i != head.count ; ++i) {
+            auto &&temp = get_array(pointer->head(i),t,s);
+            t.push_back(pointer->head(i).real_index());
+            if(k_comp(temp.key,pointer->data[i].v.key) ||
+               v_comp(temp.val,pointer->data[i].v.val)) {
+                throw error("Pair dismatch");
+            }
+        }
+        return pointer->data[0].v;
+    }
 
     /* DEBUG USE ONLY! */
     const value_t &print(header head) {
@@ -697,9 +717,27 @@ class tree {
         }
     }
 
+    void strong_check() {
+        static std::vector <int> t;
+        t.clear();
+        t.reserve(file.bin.total);
+        t.push_back(0);
+        for(auto iter : file.bin.bin_array)
+            t.push_back(iter);
+        std::sort(t.begin(),t.end());
+        std::set <int> s;
+        for(auto iter : t) s.emplace_hint(s.end(),iter);
+        get_array(root(),t,s);
+        std::sort(t.begin(),t.end());
+        for(int i = 0 ; i != (int)t.size() ; ++i)
+            if(t[i] != i) throw error("BLOCK LEAK");
+        if(t.size() != file.bin.total) throw error("Size dismatch");
+    }
 
     /* DEBUG USE ONLY! */
     void check_function() { if(!empty()) return (void)check(root()); }
+
+    void print_function() { if(!empty()) return (void)print(root()); }
 };
 
 
