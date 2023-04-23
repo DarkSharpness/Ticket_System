@@ -90,6 +90,7 @@ class file_manager {
 
     /* Can't start from nothing. */
     file_manager() = delete;
+
     /**
      * @brief Construct a new file manager object.
      * 
