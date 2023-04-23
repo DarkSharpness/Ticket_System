@@ -40,19 +40,22 @@ class file_manager {
         /* Need to write back to cache first. */
         std::pair <file_state,T> *__t;
 
+        /* Whether the cache is full. */
+        bool is_full = map.size() == cache_size;
+
         /* If modified and full sized , write to disk first. */
-        if(map.size() == cache_size && (__t = map.last())->first.is_modified())
+        if(is_full && (__t = map.last())->first.is_modified())
             write_object(__t->second,__t->first.index);
 
         /* Insert the element after iterator and update iterator. */
-        iter = map.insert_after(state,cache,iter,map.size() == cache_size,state.state);
+        iter = map.insert_after(state,cache,iter,is_full,state.state);
     }
 
     /* Locate the position for reading. */
-    void locate_in (int index) 
+    void locate_in (int index)
     { dat_file.seekg(index * page_size); }
     /* Locate the position for writing. */
-    void locate_out(int index) 
+    void locate_out(int index)
     { dat_file.seekp(index * page_size); }
 
   public:
@@ -121,7 +124,7 @@ class file_manager {
 
         if(__p) return {__p};     /* Cache hit case.*/
 
-        read_object(cache,index); /* Read to cache first. */
+        read_object(cache,index);   /* Read to cache first. */
         insert_map(iter,{index,0}); /* Insert to map from cache. */
         return {iter.next_data()};
     }

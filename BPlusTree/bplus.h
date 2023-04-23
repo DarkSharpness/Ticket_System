@@ -32,7 +32,7 @@ using key_comp = Compare <key_t>;
 using val_comp = Compare   <T>;
 
 constexpr int TABLE_SIZE = 10000;
-constexpr int CACHE_SIZE = 100; // NO LESS THAN tree_height * 2 + 2
+constexpr int CACHE_SIZE = 200; // NO LESS THAN tree_height * 2 + 2
 constexpr int BLOCK_SIZE = 101;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
@@ -291,12 +291,11 @@ class tree {
      */
     void erase_merge(visitor pointer,int x) {
         /* Of course , pointer must points to root now. */
-        if(pointer->count == 2 && cache_pointer->is_inner()) {
-            if(pointer.index() != 0) while(1);
+        if(pointer->count == 2 && cache_pointer->is_inner())
             return merge_root(x);
-        }
+
         if(pointer->count == 1) {
-            if(pointer.index() != 0) throw error("Erase merge!");
+            if(pointer.index() != 0) while(++debug_n); // Hack use
             else if(cache_pointer->count != 0) ++pointer->count;
             return;
         }

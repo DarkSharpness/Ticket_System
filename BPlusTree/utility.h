@@ -55,22 +55,22 @@ struct header {
 /* Simple compare function wrapper for B+ tree. */
 template <class T>
 struct Compare {
-    inline int operator ()(const T &x,const T &y) 
-    const noexcept { return x < y ? -1 : y < x; } 
+    inline int operator ()(const T &x,const T &y)
+    const noexcept { return x < y ? -1 : y < x; }
 };
 
 
 /* Simple wrapper of fstream read-in function. */
 template <class T>
 struct reading_func {
-    inline void operator ()(std::fstream &__f,T &obj) 
+    inline void operator ()(std::fstream &__f,T &obj)
     { __f.read((char *)(&obj),sizeof(T)); }
 };
 
 /* Simple wrapper of fstream write function. */
 template <class T>
 struct writing_func {
-    inline void operator ()(std::fstream &__f,const T &obj) 
+    inline void operator ()(std::fstream &__f,const T &obj)
     { __f.write((const char *)(&obj),sizeof(T)); }
 };
 
@@ -93,7 +93,7 @@ struct hash <dark::file_state> {
 /* Custom equal to. */
 template <>
 struct equal_to <dark::file_state> {
-    bool operator() (dark::file_state x,dark::file_state y) 
+    bool operator() (dark::file_state x,dark::file_state y)
     const noexcept { return x.index == y.index; }
 };
 
