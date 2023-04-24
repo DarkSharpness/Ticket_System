@@ -3,7 +3,6 @@
 
 
 #include "utility.h"
-
 #include "Dark/trivial_array"
 
 namespace dark {
@@ -13,7 +12,7 @@ namespace dark {
  * 
  */
 class rubbish_bin {
-  public:
+  private:
     std::fstream bin_file; /* First 16 Byte : total and count. Then data array. */
     size_t total; /* Count of nodes. */
     trivial_array <int> bin_array;  /* Cache of unused nodes. */

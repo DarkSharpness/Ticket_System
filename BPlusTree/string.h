@@ -2,12 +2,13 @@
 #define _DARK_BPLUS_STRING_H_
 
 #include "utility.h"
+#include <cstring>
 
 namespace dark {
 
-template <size_t __n>
+template <size_t N>
 struct string {
-    char str[__n];
+    char str[N];
 
     string() noexcept { str[0] = '\0'; };
 
@@ -16,6 +17,9 @@ struct string {
     string(const string &rhs) = default;
 
     string &operator = (const string &rhs) = default;
+
+    char &operator [](size_t __n) noexcept { return str[__n]; }
+    const char &operator [](size_t __n) const noexcept { return str[__n]; }
 
     const char *base() const noexcept { return str; }
 };

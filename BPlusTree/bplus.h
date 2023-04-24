@@ -9,24 +9,29 @@ namespace dark {
 
 namespace b_plus {
 
-constexpr int TABLE_SIZE = 8000;
-constexpr int CACHE_SIZE = 80000; // NO LESS THAN tree_height * 2 + 2
+using key_t = string <68>;
+using   T   = int;
+using key_comp = Compare <key_t>;
+using val_comp = Compare   <T>;
+constexpr int TABLE_SIZE = 100000;
+constexpr int CACHE_SIZE = 300; // NO LESS THAN tree_height * 2 + 2
 constexpr int BLOCK_SIZE = 101;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
+constexpr int   MAX_SIZE = 30000000;
 
-template <
-    class key_t,
-    class   T  ,
-    class key_comp = Compare <key_t>,
-    class val_comp = Compare   <T>,
-    size_t TABLE_SIZE = 2047,
-    size_t CACHE_SIZE = 80000,
-    int BLOCK_SIZE = 101,
-    int AMORT_SIZE = BLOCK_SIZE * 2 / 3,
-    int MERGE_SIZE = BLOCK_SIZE / 3,
-    int   MAX_SIZE = 3000000
->
+// template <
+//     class key_t,
+//     class   T  ,
+//     size_t TABLE_SIZE = 2047,
+//     size_t CACHE_SIZE = 80000,
+//     class key_comp = Compare <key_t>,
+//     class val_comp = Compare   <T>,
+//     int BLOCK_SIZE = 101,
+//     int AMORT_SIZE = BLOCK_SIZE * 2 / 3,
+//     int MERGE_SIZE = BLOCK_SIZE / 3,
+//     int   MAX_SIZE = 3000000
+// >
 class tree {
   private: /* Struct and using part. */
 
@@ -283,8 +288,8 @@ class tree {
             return merge_root(x);
 
         if(pointer->count == 1) {
-            if(pointer.index() != 0) while(++debug_n); // Hack use
-            else if(cache_pointer->count != 0) ++pointer->count;
+            if(cache_pointer->count != 0) ++pointer->count;
+            else recycle(cache_pointer);
             return;
         }
 
@@ -577,25 +582,25 @@ class tree {
         return pointer->data[0].v;
     }
 
-    const value_t &check_outer(header head) {
+    const value_t check_outer(header head) {
         visitor pointer = get_pointer(head);
         if(head.count != pointer->count) throw error("Outer Mis-match");
         return pointer->data[0].v;
     }
 
-    const value_t &check(header head) {
+    const value_t check(header head) {
         if(!head.is_inner()) return check_outer(head);
-        visitor pointer = get_pointer(head);
-        if(head.count != pointer->count)
+        node data = *get_pointer(head);
+        if(head.count != data.count)
             throw error("Inner Mis-Match!!!");
         for(int i = 0 ; i != head.count ; ++i) {
-            auto &&temp = check(pointer->head(i));
-            if(k_comp(temp.key,pointer->data[i].v.key) ||
-               v_comp(temp.val,pointer->data[i].v.val)) {
+            auto &&temp = check(data.head(i));
+            if(k_comp(temp.key,data.data[i].v.key) ||
+               v_comp(temp.val,data.data[i].v.val)) {
                 throw error("Pair dismatch");
             }
         }
-        return pointer->data[0].v;
+        return data.data[0].v;
     }
 
 
@@ -707,8 +712,16 @@ class tree {
         }
     }
 
+    /**
+     * @brief Clear all the data in the map.
+     * 
+     */
+    void clear() {
+        /// TODO:
+    }
+
     /* DEBUG USE ONLY! */
-    void check_function() { if(!empty()) return (void)check(root()); }
+    void check_function() { if(!empty()) return (void)check(root());  }
 
     void print_function() { if(!empty()) return (void)print(root()); }
 };

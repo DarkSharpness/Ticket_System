@@ -26,7 +26,7 @@ template <
     size_t page_size = ((sizeof(T) - 1) / 4096 + 1) * 4096
 > 
 class file_manager {
-  public:
+  private:
     using map_t    = LRU_map <file_state,T,table_size>;
     using iterator = typename map_t::iterator;
 
@@ -122,7 +122,7 @@ class file_manager {
         auto iter = map.find_pre({index,0});
         auto *__p = iter.next_data();
 
-        if(__p) return {__p};     /* Cache hit case.*/
+        if(__p) return {__p};       /* Cache hit case.*/
 
         read_object(cache,index);   /* Read to cache first. */
         insert_map(iter,{index,0}); /* Insert to map from cache. */
