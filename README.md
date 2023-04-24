@@ -1,7 +1,7 @@
-# Fuck you Bplus Tree!
+# Screw you Bplus Tree!
 
-# Fuck you Ticket System!
+# Screw you Ticket System!
 
-# Fuck you all the obstacles in my way!
+# Screw you all the obstacles in my way!
 
-# Fuck myself!
+# Screw myself!
