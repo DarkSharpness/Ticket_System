@@ -1,41 +1,32 @@
+#ifndef _DARK_BPLUS_H_
+#define _DARK_BPLUS_H_
+
 #include "file_manager.h"
+#include "string.h"
+
 
 namespace dark {
 
-template <size_t __n>
-struct string {
-    char str[__n];
-    
-    string() noexcept { str[0] = '\0'; };
-
-    string(const char *rhs) noexcept { strcpy(str,rhs); }
-
-    string(const string &rhs) = default;
-
-    string &operator =(const string &rhs) = default;
-
-    const char *base() const noexcept { return str; }
-};
-
-template <size_t __n>
-inline bool operator < (const string <__n> &lhs,const string <__n> &rhs) 
-noexcept { return strcmp(lhs.base(),rhs.base()) < 0; }
-
 namespace b_plus {
-
-using key_t = string <68>;
-using   T   = int;
-using key_comp = Compare <key_t>;
-using val_comp = Compare   <T>;
 
 constexpr int TABLE_SIZE = 8000;
 constexpr int CACHE_SIZE = 80000; // NO LESS THAN tree_height * 2 + 2
 constexpr int BLOCK_SIZE = 101;
 constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
 constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
-constexpr int  MAX_SIZE  = 300000;
 
-
+template <
+    class key_t,
+    class   T  ,
+    class key_comp = Compare <key_t>,
+    class val_comp = Compare   <T>,
+    size_t TABLE_SIZE = 2047,
+    size_t CACHE_SIZE = 80000,
+    int BLOCK_SIZE = 101,
+    int AMORT_SIZE = BLOCK_SIZE * 2 / 3,
+    int MERGE_SIZE = BLOCK_SIZE / 3,
+    int   MAX_SIZE = 3000000
+>
 class tree {
   private: /* Struct and using part. */
 
@@ -727,4 +718,4 @@ class tree {
 
 }
 
-
+#endif

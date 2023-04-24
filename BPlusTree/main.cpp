@@ -3,9 +3,9 @@
 
 
 signed main() {
-    using tree = dark::b_plus::tree;
+    using tree = dark::b_plus::tree <dark::string<68>,int>;
     typename tree::return_list data;
-    dark::b_plus::tree t("a");
+    tree t("a");
     int n = dark::read <int> ();
     dark::string <68> str;
     while(n--) {
