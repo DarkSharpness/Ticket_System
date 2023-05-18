@@ -24,8 +24,11 @@ template <
     class i_func = reading_func <T>,
     class o_func = writing_func <T>,
     size_t page_size = ((sizeof(T) - 1) / 4096 + 1) * 4096
-> 
+>
 class file_manager {
+  public:
+    struct visitor; /* Declaration. */
+
   private:
     using map_t    = LRU_map <file_state,T,table_size>;
     using iterator = typename map_t::iterator;
@@ -36,19 +39,18 @@ class file_manager {
     T cache;               /* Cache Block.    */
 
     /* Insert the map with data in cache block at given iterator. */
-    void insert_map(iterator &iter,file_state state) {
-        /* Need to write back to cache first. */
-        std::pair <file_state,T> *__t;
-
-        /* Whether the cache is full. */
-        bool is_full = map.size() == cache_size;
-
-        /* If modified and full sized , write to disk first. */
-        if(is_full && (__t = map.last())->first.is_modified())
-            write_object(__t->second,__t->first.index);
+    visitor insert_map(iterator iter,file_state state) {
+        /* If full sized , erase the oldest. */
+        if(map.size() == cache_size) {
+            auto *__t = map.last();
+            /* If modified , write to disk first. */
+            if(__t->first.is_modified())
+                write_object(__t->second,__t->first.index);
+            map.erase(__t->first);
+        }
 
         /* Insert the element after iterator and update iterator. */
-        iter = map.insert_after(state,cache,iter,is_full,state.state);
+        return {map.insert(state,cache,state.state).next_data()};
     }
 
     /* Locate the position for reading. */
@@ -120,13 +122,11 @@ class file_manager {
     /* Return reference to given data. */
     visitor get_object(int index) {
         auto iter = map.find_pre({index,0});
-        auto *__p = iter.next_data();
-
-        if(__p) return {__p};       /* Cache hit case.*/
+        auto *__p = iter.next_data(); /* Pointer to real data. */
+        if(__p) return {__p};         /* Cache hit case.*/
 
         read_object(cache,index);   /* Read to cache first. */
-        insert_map(iter,{index,0}); /* Insert to map from cache. */
-        return {iter.next_data()};
+        return insert_map(iter,{index,0}); /* Insert to map from cache. */
     }
 
     /* Recycle an old node. */
@@ -141,9 +141,9 @@ class file_manager {
     visitor allocate() {
         int index = bin.allocate(); /* Allocate a new node. */
         auto iter = map.find_pre({index,1}); /* Iterator before {index}. */
+
         /* Of course, newly allocated node will be modified. */
-        insert_map(iter,{index,1});
-        return {iter.next_data()};
+        return insert_map(iter,{index,1});
     }
 
     /* Skip the last block. Users should manager the block themselves. */

@@ -9,29 +9,29 @@ namespace dark {
 
 namespace b_plus {
 
-using key_t = string <68>;
-using   T   = int;
-using key_comp = Compare <key_t>;
-using val_comp = Compare   <T>;
-constexpr int TABLE_SIZE = 100000;
-constexpr int CACHE_SIZE = 300; // NO LESS THAN tree_height * 2 + 2
-constexpr int BLOCK_SIZE = 101;
-constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
-constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
-constexpr int   MAX_SIZE = 30000000;
+// using key_t = string <68>;
+// using   T   = int;
+// using key_comp = Compare <key_t>;
+// using val_comp = Compare   <T>;
+// constexpr int TABLE_SIZE = 2000;
+// constexpr int CACHE_SIZE = 200; // NO LESS THAN tree_height * 2 + 2
+// constexpr int BLOCK_SIZE = 101;
+// constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
+// constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
+// constexpr int   MAX_SIZE = 30000000;
 
-// template <
-//     class key_t,
-//     class   T  ,
-//     size_t TABLE_SIZE = 2047,
-//     size_t CACHE_SIZE = 80000,
-//     class key_comp = Compare <key_t>,
-//     class val_comp = Compare   <T>,
-//     int BLOCK_SIZE = 101,
-//     int AMORT_SIZE = BLOCK_SIZE * 2 / 3,
-//     int MERGE_SIZE = BLOCK_SIZE / 3,
-//     int   MAX_SIZE = 3000000
-// >
+template <
+    class key_t,
+    class   T  ,
+    size_t TABLE_SIZE = 2047,
+    size_t CACHE_SIZE = 8000,
+    int    BLOCK_SIZE = 101,
+    class key_comp = Compare <key_t>,
+    class val_comp = Compare   <T>,
+    int AMORT_SIZE = BLOCK_SIZE * 2 / 3,
+    int MERGE_SIZE = BLOCK_SIZE / 3,
+    int   MAX_SIZE = 3000000
+>
 class tree {
   private: /* Struct and using part. */
 
