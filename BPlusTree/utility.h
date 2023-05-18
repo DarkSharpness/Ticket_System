@@ -8,15 +8,15 @@ namespace dark {
 
 enum class node_type : bool  { INNER = 1,OUTER = 0 };
 
-int debug_n = 0;
 
+/* Custom error caller. */
 struct error {
     error(std::string str) {
         freopen("CON","w",stdout);
-        std::cout << debug_n << '\n';
         std::cout << str << '\n';
     }
 };
+
 
 /* Simple file_state wrapper. Use highest bit to store modification state. */
 struct file_state {
@@ -29,6 +29,7 @@ struct file_state {
     void modify() noexcept { state = true; }
     
 };
+
 
 /* Simple file index wrapper to distinguish inner and outer node for B+ tree. */
 struct header {
@@ -60,12 +61,21 @@ struct Compare {
 };
 
 
+/* A simple class , compare integers by difference. */
+template <class integer>
+struct Compare_Int {
+    int operator ()(const integer &lhs,const integer &rhs)
+    const noexcept { return lhs - rhs; }
+};
+
+
 /* Simple wrapper of fstream read-in function. */
 template <class T>
 struct reading_func {
     inline void operator ()(std::fstream &__f,T &obj)
     { __f.read((char *)(&obj),sizeof(T)); }
 };
+
 
 /* Simple wrapper of fstream write function. */
 template <class T>
@@ -74,14 +84,12 @@ struct writing_func {
     { __f.write((const char *)(&obj),sizeof(T)); }
 };
 
-}
 
-/* DEBUG USE ONLY! */
-std::ostream &operator << (std::ostream &os,dark::file_state x) 
-{  return os << x.index; }
+}
 
 
 namespace std {
+
 
 /* Custom hash. */
 template <>
@@ -90,12 +98,14 @@ struct hash <dark::file_state> {
     const noexcept { return t.index; }
 };
 
+
 /* Custom equal to. */
 template <>
 struct equal_to <dark::file_state> {
     bool operator() (dark::file_state x,dark::file_state y)
     const noexcept { return x.index == y.index; }
 };
+
 
 }
 

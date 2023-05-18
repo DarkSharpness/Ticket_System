@@ -5,7 +5,7 @@
 #include "allocator.h"
 
 #include <iostream>
-#include <string>
+#include <cstring>
 
 namespace dark {
 
@@ -125,7 +125,6 @@ class LRU_map {
     /* Force to erase a key from hash_map. */
     void erase(const key_t &__k) {
         baseptr __p = find(__k);
-        if(!__p->real) throw 114514; /* DEBUG: This should never happen. */
 
         /* Relinking. */
         baseptr __n = __p->real;

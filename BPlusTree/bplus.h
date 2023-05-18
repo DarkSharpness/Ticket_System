@@ -2,23 +2,10 @@
 #define _DARK_BPLUS_H_
 
 #include "file_manager.h"
-#include "string.h"
-
 
 namespace dark {
 
 namespace b_plus {
-
-// using key_t = string <68>;
-// using   T   = int;
-// using key_comp = Compare <key_t>;
-// using val_comp = Compare   <T>;
-// constexpr int TABLE_SIZE = 2000;
-// constexpr int CACHE_SIZE = 200; // NO LESS THAN tree_height * 2 + 2
-// constexpr int BLOCK_SIZE = 101;
-// constexpr int AMORT_SIZE = BLOCK_SIZE * 2 / 3;
-// constexpr int MERGE_SIZE = BLOCK_SIZE / 3;
-// constexpr int   MAX_SIZE = 30000000;
 
 template <
     class key_t,
@@ -564,82 +551,12 @@ class tree {
     }
 
 
-    /* DEBUG USE ONLY! */
-    const value_t &print_outer(header head) {
-        visitor pointer = get_pointer(head);
-        // if(head.count != pointer->count) throw error("Outer Mis-match");
-
-        std::cout << "Outer block "  << head.real_index() << " :\n";
-        for(int i = 0 ; i != head.count ; ++i)
-            std::cout << "Leaf " << i << ": || key: "
-                      << pointer->data[i].v.key.str
-                      << " || value: "
-                      << pointer->data[i].v.val
-                      << " ||\n";
-        std::cout << "Next index x: " << pointer->next();
-        std::cout << "\n--------------------------------\n";
-
-        return pointer->data[0].v;
-    }
-
-    const value_t check_outer(header head) {
-        visitor pointer = get_pointer(head);
-        if(head.count != pointer->count) throw error("Outer Mis-match");
-        return pointer->data[0].v;
-    }
-
-    const value_t check(header head) {
-        if(!head.is_inner()) return check_outer(head);
-        node data = *get_pointer(head);
-        if(head.count != data.count)
-            throw error("Inner Mis-Match!!!");
-        for(int i = 0 ; i != head.count ; ++i) {
-            auto &&temp = check(data.head(i));
-            if(k_comp(temp.key,data.data[i].v.key) ||
-               v_comp(temp.val,data.data[i].v.val)) {
-                throw error("Pair dismatch");
-            }
-        }
-        return data.data[0].v;
-    }
-
-
-    /* DEBUG USE ONLY! */
-    const value_t &print(header head) {
-        if(!head.is_inner()) return print_outer(head);
-        visitor pointer = get_pointer(head);
-        if(head.count != pointer->count)
-            throw error("Inner Mis-Match!!!");
-
-        std::cout << "Inner block "  << head.real_index() << " :\n";
-        for(int i = 0 ; i != head.count ; ++i)
-            std::cout << "Son " << i << ": || index: "
-                      << pointer->head(i).real_index()
-                      << " || key: "
-                      << pointer->data[i].v.key.str
-                      << " || value: "
-                      << pointer->data[i].v.val
-                      << " ||\n";
-        std::cout << "Next index x: " << pointer->next();
-        std::cout << "\n--------------------------------\n";
-
-        for(int i = 0 ; i != head.count ; ++i) {
-            auto &&temp = print(pointer->head(i));
-            if(k_comp(temp.key,pointer->data[i].v.key) ||
-               v_comp(temp.val,pointer->data[i].v.val)) {
-                throw error("Pair dismatch");
-            }
-        } return pointer->data[0].v;
-    }
-
   public: /* Public functions. */
-
 
     using return_list = dark::trivial_array <T>;
 
-
+    /* No default constructor. */
     tree() = delete;
-
 
     /* Initialize the tree. */
     tree(std::string path1) :
@@ -712,6 +629,7 @@ class tree {
         }
     }
 
+
     /**
      * @brief Clear all the data in the map.
      * 
@@ -720,10 +638,6 @@ class tree {
         /// TODO:
     }
 
-    /* DEBUG USE ONLY! */
-    void check_function() { if(!empty()) return (void)check(root());  }
-
-    void print_function() { if(!empty()) return (void)print(root()); }
 };
 
 

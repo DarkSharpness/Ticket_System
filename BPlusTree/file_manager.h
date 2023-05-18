@@ -2,7 +2,6 @@
 #define _DARK_FILE_MANAGER_H_
 
 #include "rubbish_bin.h"
-
 #include "Dark/LRU_map"
 
 namespace dark {
