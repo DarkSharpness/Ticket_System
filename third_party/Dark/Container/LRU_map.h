@@ -57,7 +57,6 @@ class LRU_map {
 
     /* Allocate one node with given key and value. */
     baseptr allocate(const key_t &__k,const T &__v,bool useless) {
-        ++impl.count;
         if(cache.real) { /* Allocate from cache if available. */
             baseptr temp = cache.real; 
             cache.real   = temp->real;
@@ -71,9 +70,8 @@ class LRU_map {
 
     /* Deallocate one node after given pointer. */
     void deallocate(baseptr __p) {
-        --impl.count;
-        __p->real   = cache.real;
-        cache.real  = __p;
+        __p->real  = cache.real;
+        cache.real = __p;
     }
 
     /* Find the previous baseptr in the map.  */
@@ -112,6 +110,7 @@ class LRU_map {
         baseptr __p = find_index(__k);
 
         /* Allocate. */
+        ++impl.count;
         baseptr __n = allocate(__k,__t,useless);
 
         /* Relinking. */
@@ -122,9 +121,10 @@ class LRU_map {
         return {__p}; /* Return iterator to previous hash node. */
     }
 
-    /* Force to erase a key from hash_map. */
+    /* Tries to erase a key from hash_map. */
     void erase(const key_t &__k) {
         baseptr __p = find(__k);
+        if(!__p->real) return; /* Case: Not found. */
 
         /* Relinking. */
         baseptr __n = __p->real;
@@ -132,6 +132,7 @@ class LRU_map {
         list::delink(static_cast <pointer> (__n));
 
         /* Deallocate. */
+        --impl.count;
         deallocate(__n);
     }
 
@@ -147,6 +148,17 @@ class LRU_map {
 
     /* Return count of elements in the map. */
     size_t size() const noexcept { return impl.count; }
+
+    void clear() {
+        listptr __p = header.next;
+        while(__p != &header) {
+            find_index(static_cast <pointer> (__p)->data.first)
+                ->real = nullptr; /* Clear hash table. */
+            deallocate(static_cast <pointer> (__p));
+            __p = __p->next;
+        } /* Now the list is cleared empty.  */
+        header.next = header.prev = &header;
+    }
 
  public:
 
