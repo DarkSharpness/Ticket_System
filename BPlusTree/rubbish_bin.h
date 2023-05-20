@@ -62,7 +62,15 @@ class rubbish_bin {
     size_t size() const noexcept { return total; }
 
     /* Skip the last block. Users should manager the block themselves. */
-    void skip_block() { ++total; }
+    void init() { total = 1; }
+
+    /* Reset the  */
+    void reset() {
+        bin_array.clear();
+        bin_array.resize(total - 1);
+        for(size_t i = 0 ; i != total - 1 ; ++i)
+            bin_array[i] = i + 1;
+    }
 
 };
 

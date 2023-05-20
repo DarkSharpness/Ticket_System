@@ -13,15 +13,12 @@ namespace dark {
  * @tparam T The inner data type.
  * @tparam table_size Table size of inner LRU_map.
  * @tparam cache_size Cache size of inner LRU_map.
- * @tparam i_func Custom reading function wrapper.
- * @tparam o_func Custom writing function wrapper.
+ * @tparam page_size Size of a page for writing.
  */
 template <
     class T,
     size_t table_size,
     size_t cache_size,
-    class i_func = reading_func <T>,
-    class o_func = writing_func <T>,
     size_t page_size = ((sizeof(T) - 1) / 4096 + 1) * 4096
 >
 class file_manager {
@@ -38,31 +35,21 @@ class file_manager {
     T cache;               /* Cache Block.    */
 
     /* Insert the map with data in cache block at given iterator. */
-    visitor insert_map(iterator iter,file_state state) {
+    visitor insert_map(file_state state) {
         /* If full sized , erase the oldest. */
         if(map.size() == cache_size) {
             auto *__t = map.last();
             /* If modified , write to disk first. */
             if(__t->first.is_modified())
                 write_object(__t->second,__t->first.index);
-            map.erase(__t->first);
+            map.erase(__t->first); /* Erase it! */
         }
 
         /* Insert the element after iterator and update iterator. */
         return {map.insert(state,cache,state.state).next_data()};
     }
 
-    /* Locate the position for reading. */
-    void locate_in (int index)
-    { dat_file.seekg(index * page_size); }
-    /* Locate the position for writing. */
-    void locate_out(int index)
-    { dat_file.seekp(index * page_size); }
-
   public:
-    [[no_unique_address]]i_func reader; /* Read  func. Modifiable. */
-    [[no_unique_address]]o_func writer; /* Write func. Modifiable.*/
-
     /* Visitor to cache data. */
     struct visitor {
         std::pair <file_state,T> *__p;
@@ -90,7 +77,6 @@ class file_manager {
         inline int index() const noexcept 
         { return __p->first.index; }
     };
-
 
     /* Can't start from nothing. */
     file_manager() = delete;
@@ -120,43 +106,42 @@ class file_manager {
 
     /* Return reference to given data. */
     visitor get_object(int index) {
-        auto iter = map.find_pre({index,0});
-        auto *__p = iter.next_data(); /* Pointer to real data. */
+        auto *__p = map.find_pre({index,0}).next_data();
         if(__p) return {__p};         /* Cache hit case.*/
-
-        read_object(cache,index);   /* Read to cache first. */
-        return insert_map(iter,{index,0}); /* Insert to map from cache. */
+        read_object(cache,index);     /* Read to cache first. */
+        return insert_map({index,0}); /* Insert to map from cache. */
     }
 
     /* Recycle an old node. */
     void recycle(int index) {
-        /* Recycle first to rubbish bin. */
-        bin.recycle(index);
-        /* Erase element from map. */
-        map.erase({index,0});
+        bin.recycle(index);           /* Recycle first to rubbish bin. */
+        map.erase({index,0});         /* Erase element from map. */
     }
 
     /* Allocate a new node for further modification. */
     visitor allocate() {
-        int index = bin.allocate(); /* Allocate a new node. */
-        auto iter = map.find_pre({index,1}); /* Iterator before {index}. */
-
         /* Of course, newly allocated node will be modified. */
-        return insert_map(iter,{index,1});
+        return insert_map({bin.allocate(),1});
     }
 
     /* Skip the last block. Users should manager the block themselves. */
-    void skip_block() { bin.skip_block(); }
+    void init() { bin.init(); }
 
     /* Read object from disk at given index. */
     void read_object(T &obj,int index) {
-        locate_in(index);
-        reader(dat_file,obj);
+        dat_file.seekg(index * page_size);
+        dat_file.read((char *)&obj,page_size);
     }
     /* Write object to disk at given index. */
     void write_object(const T &obj,int index) {
-        locate_out(index);
-        writer(dat_file,obj);
+        dat_file.seekp(index * page_size);
+        dat_file.write((const char *)&obj,page_size);
+    }
+
+    /* Clear the data within. */
+    void clear() {
+        bin.reset();
+        map.clear();
     }
 
     /* Count of all nodes. */

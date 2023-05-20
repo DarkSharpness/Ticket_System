@@ -5,16 +5,7 @@
 
 
 signed main() {
-    using tree = dark::b_plus::tree <
-        dark::string<68>,
-        int,
-        4095,
-        20000,
-        101,
-        dark::Compare <dark::string<68>>,
-        dark::Compare_Int <int>
-    >
-    ;
+    using tree = dark::bpt <dark::string <68>,int,100,64,4>;
     typename tree::return_list data;
     std::filesystem::create_directory("output");
     tree t("output/a");
