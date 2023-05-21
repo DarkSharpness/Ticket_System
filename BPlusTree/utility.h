@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <iostream>
+#include "Dark/inout"
 
 namespace dark {
 

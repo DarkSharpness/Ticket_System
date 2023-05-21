@@ -592,6 +592,7 @@ class tree {
     /* Return whether the tree is empty. */
     bool empty() const noexcept { return !__root_pair.second.count; }
 
+    size_t size() const noexcept { return file.size(); }
 
     /* Insert a key-value pair into the node. */
     void insert(const key_t &key,const T &val) {
