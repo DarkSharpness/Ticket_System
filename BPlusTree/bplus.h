@@ -69,7 +69,6 @@ class tree {
     /* Effective size of a block. */
     static constexpr int REAL_SIZE = sizeof(header) + BLOCK_SIZE * sizeof(tuple_t);
 
-
     /* Index node trivial class */
     struct node : header {
         tuple_t data[BLOCK_SIZE + 1]; /* One more space for better performance. */
@@ -85,8 +84,6 @@ class tree {
         { return set_index(index,node_type(is_inner())); }
     };
 
-    static_assert(REAL_SIZE + sizeof(tuple_t) == sizeof(node),"Fault");
-
     using node_file_t =
             file_manager <
                 node,
@@ -96,6 +93,10 @@ class tree {
             >;
 
     using visitor = typename node_file_t::visitor;
+
+    /* Some necessary assertion. */
+    static_assert(BLOCK_SIZE >= 10,"Too small,block size!");
+    static_assert(REAL_SIZE + sizeof(tuple_t) == sizeof(node),"Size dismatch!");
 
    private: /* Data part. */
 
