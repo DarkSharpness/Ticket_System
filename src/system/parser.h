@@ -13,9 +13,9 @@ namespace dark {
  */
 class command_parser {
   private:
-    char buffer[916]; /* Buffered string. */
-    int  index [26];  /* Index of string. */
-    command_t command;
+    char buffer[924];  /* Buffered string. */
+    int  index [24];   /* Index of string. */
+    command_t command; /* Temporary command holder. */
 
     /**
      * @brief Get command from buffer.
@@ -61,14 +61,13 @@ class command_parser {
         read_string(buffer);
         if(!get_command()) /* EXIT or CLEAN contains no argument. */
             return buffer[0] == 'c' ? command_t::CLR_ : command_t::EXIT;
-
         /* If requires further parsing , first clear index.  */
         memset(index,-1,sizeof(index));
         char *head = buffer; /* The head index for reading in. */
 
         while(true) {
             char opt = read_string(head)[-1];
-            index[opt - 'a'] = head - buffer;
+            index[opt - 'b'] = head - buffer;
             head = read_string(head);
             if(*head == '\n') opt = 0;
             *(head++) = 0; /* Null as end. */
@@ -83,10 +82,9 @@ class command_parser {
      * @return nullptr only if not in param.
      */
     char *get_argument(char c) noexcept
-    { return index[c - 'a'] != -1 ? buffer + index[c - 'a'] : nullptr; }
+    { return index[c - 'b'] != -1 ? buffer + index[c - 'a'] : nullptr; }
 
 };
-
 
 
 }

@@ -64,7 +64,7 @@ class ticket_system {
             case command_t::R_TK: refund_ticket();  break;
             case command_t::CLR_: clean();          break;
             case command_t::EXIT: return false;
-            default: /* This should never happen! */
+            default: ; /* This should never happen! */
         } return true;
     }
 };

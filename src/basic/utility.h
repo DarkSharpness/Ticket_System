@@ -7,8 +7,8 @@
 #ifndef _TICKET_UTILITY_H_
 #define _TICKET_UTILITY_H_
 
-#include "../BPlusTree/utility.h"
-#include "../BPlusTree/string.h"
+#include "../../BPlusTree/utility.h"
+#include "../../BPlusTree/string.h"
 
 /* Some declarations and defines. */
 namespace dark {
