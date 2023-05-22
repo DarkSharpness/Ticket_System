@@ -40,7 +40,7 @@ struct account {
 };
 
 /* Write a line of privilege. */
-void writeline(const privilege_t &__p) {
+void writeline_privilege(const privilege_t &__p) {
     if(__p != 10) { putchar(__p ^ '0'); }
     else {  putchar('1'); putchar('0'); }
     putchar('\n');
@@ -48,11 +48,11 @@ void writeline(const privilege_t &__p) {
 
 /* Only writeline will be used for accounts. */
 void writeline(const account &__a) {
-    dark::writeline(__a.user,
-                    __a.pswd,
-                    __a.name,
-                    __a.mail,
-                    __a.level());
+    dark::write(__a.user,
+                __a.name,
+                __a.mail);
+    putchar(' ');
+    dark::writeline_privilege(__a.level());
 }
 
 /* Only writeline will be used for accounts. */

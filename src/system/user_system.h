@@ -53,7 +53,7 @@ class user_system {
                   const char *__n,const char *__m,const char *__g) {
         temp.login() = false;
 
-        if(user_set.empty()) { /* First insert */
+        if(user_set.empty()) { /* First insert. */
             temp.copy(__u,__p,__n,__m,10);
             user_set.insert(temp);
             return true;
@@ -81,14 +81,16 @@ class user_system {
     bool login(const char *__u,const char *__p) {
         auto *__a = user_set.find(string_hash(__u)); /* Account pointer. */
         
-        /* No such user || password is wrong.   */
-        if(!__a || strcmp(__a->pswd.base(),__p) != 0) return false;
+        /* No such user || User has logged in || password is wrong   */
+        if(!__a || __a->login() || strcmp(__a->pswd.base(),__p) != 0) return false;
         else return (__a->login() = true);
     }
 
     bool logout(const char *__u) {
-        temp.user = __u;
-        return user_set.erase(temp);
+        auto __a = user_set.find(string_hash(__u));
+        /* No such user || Not logged in. */
+        if(!__a || !__a->login()) return false;
+        return !(__a->login() = false); 
     }
 
     account *query_profile(const char *__c,const char *__u) {

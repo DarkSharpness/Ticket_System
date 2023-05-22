@@ -64,11 +64,10 @@ class ticket_system : command_parser,user_system  {
 
     void clean() {}
 
+    void quit() { dark::writeline("bye"); }
   public:
     
-    ticket_system() : command_parser(),user_system("bin/user") {
-
-    }
+    ticket_system() : command_parser(),user_system("bin/user") {}
     /**
      * @brief Switch part of the function.
      * 
@@ -91,7 +90,7 @@ class ticket_system : command_parser,user_system  {
             case command_t::Q_OR: query_order();    break;
             case command_t::R_TK: refund_ticket();  break;
             case command_t::CLR_: clean();          break;
-            case command_t::EXIT: return false;
+            case command_t::EXIT: quit(); return false;
             default: ; /* This should never happen! */
         } return true;
     }

@@ -55,7 +55,13 @@ class command_parser {
      */
     command_t parse() noexcept {
         /* First read and write out timestamp. */
-        write_input();
+        // write_input(); putchar(' ');
+
+        /* DEBUG only! */
+        size_t time_stamp = dark::read <size_t> ();
+        if(time_stamp == 1878)
+            time_stamp = time_stamp * 2 - 1878;
+        dark::print('[',time_stamp,']',' ');
 
         /* Then , get command. */
         read_string(buffer);
@@ -82,7 +88,7 @@ class command_parser {
      * @return nullptr only if not in param.
      */
     char *argument(char c) noexcept
-    { return index[c - 'b'] != -1 ? buffer + index[c - 'a'] : nullptr; }
+    { return index[c - 'b'] != -1 ? buffer + index[c - 'b'] : nullptr; }
 
 };
 
