@@ -3,9 +3,15 @@
 #include "string.h"
 #include <filesystem>
 
+size_t hash_str(const char *str) {
+    static size_t fix_random = rand() * rand();
+    size_t __h = fix_random;
+    while(*str) { __h = __h * 137 + *(str++); }
+    return __h;
+}
 
 signed main() {
-    using tree = dark::bpt <dark::string <68>,int,100,64,4>;
+    using tree = dark::bpt <size_t,int,1023,10000,2>;
     typename tree::return_list data;
     std::filesystem::create_directory("output");
     tree t("output/a");
@@ -15,13 +21,13 @@ signed main() {
         dark::read(str.str);
         if(str.str[0] == 'i') {
             dark::read(str.str);
-            t.insert(str,dark::read <int> ());
+            t.insert(hash_str(str.base()),dark::read <int> ());
         } else if(str.str[0] == 'd') {
             dark::read(str.str);
-            t.erase(str,dark::read <int> ());
+            t.erase(hash_str(str.base()),dark::read <int> ());
         } else {
             dark::read(str.str);
-            t.find(str.str,data);
+            t.find(hash_str(str.base()),data);
             if(data.empty()) puts("null");
             else {
                 for(auto iter : data) dark::print(iter,' ');

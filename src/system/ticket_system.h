@@ -1,23 +1,48 @@
 #ifndef _DARK_TICKET_SYSTEM_H_
 #define _DARK_TICKET_SYSTEM_H_
-
+#include "header.h"
+#include "user_system.h"
 #include "parser.h"
 
 namespace dark {
 
-class ticket_system {
+
+class ticket_system : command_parser,user_system  {
   private:
-    command_parser Hastin;
 
-    void add_user() {}
+    void add_user() {
+        dark::writeline(
+            user_system::add_user(argument('c'),argument('u'),
+                                  argument('p'),argument('n'),
+                                  argument('m'),argument('g'))
+        );
+    }
 
-    void login() {}
+    void login() {
+        dark::writeline(
+            user_system::login(argument('u'),argument('p'))
+        );
+    }
 
-    void log_out() {}
+    void log_out() {
+        dark::writeline(
+            user_system::logout(argument('u'))
+        );
+    }
 
-    void query_profile() {}
+    void query_profile() {
+        dark::writeline(
+            user_system::query_profile(argument('c'),argument('u'))
+        );
+    }
 
-    void modify_profile() {}
+    void modify_profile() {
+        dark::writeline(
+            user_system::modify_profile(argument('c'),argument('u'),
+                                        argument('p'),argument('n'),
+                                        argument('m'),argument('g'))
+        );
+    }
 
     void add_train() {}
 
@@ -41,13 +66,16 @@ class ticket_system {
 
   public:
     
+    ticket_system() : command_parser(),user_system("bin/user") {
+
+    }
     /**
      * @brief Switch part of the function.
      * 
-     * @return False only if 
+     * @return False only if exit case.
      */
     bool work() noexcept {
-        switch(Hastin.parse()) {
+        switch(command_parser::parse()) {
             case command_t::A_US: add_user();       break;
             case command_t::L_IN: login();          break;
             case command_t::L_OU: log_out();        break;

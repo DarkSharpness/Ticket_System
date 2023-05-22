@@ -3,6 +3,7 @@
 
 #include "hash.h"
 #include "allocator.h"
+#include "Dark/trivial_array"
 
 #include <iostream>
 #include <cstring>
@@ -229,7 +230,7 @@ class hash_set {
         if(cache.real) { /* Allocate from cache if available. */
             baseptr temp = cache.real; 
             cache.real   = temp->real;
-            static_cast <pointer> (temp)->data = __k;
+            memcpy(&static_cast <pointer> (temp)->data,&__k,sizeof(key_t));
             return temp;
         } else return impl.alloc(hash::forward_tag(),__k);
     }
@@ -246,25 +247,25 @@ class hash_set {
         while(__p->real) {
             if( /* Given key equal to the key of current node. */
                 Compare(impl) ( __k,
-                static_cast <pointer> (__p->real) -> data)
+                            static_cast <pointer> (__p->real) -> data)
             ) break;
             __p = __p->real;
         } return __p;
     }
 
-  public:
+    baseptr find_hash(size_t __h) {
+        baseptr __p = &table[__h % kTABLESIZE];
+        while(__p->real) {
+            if( /* Given key equal to the key of current node. */
+                __h == Hash(impl)
+                        (static_cast <pointer> (__p->real) -> data)
+            ) break;
+            __p = __p->real;
+        } return __p;
+    }
 
-    hash_set() noexcept = default;
-
-    ~hash_set() {
-        for(size_t i = 0 ; i != kTABLESIZE ; ++i) {
-            baseptr __p = table[i].real;
-            while(__p) {
-                baseptr __n = __p->real;
-                impl.dealloc(static_cast <pointer> (__p));
-                __p = __n;
-            }
-        }
+    /* Clear all the cache storage. */
+    void clear_cache() {
         while(cache.real) {
             baseptr __p = cache.real;
             cache.real  = __p->real;
@@ -272,7 +273,30 @@ class hash_set {
         }
     }
 
-    /* Forces to insert a key-value pair. */
+  public:
+
+    hash_set() noexcept = default;
+
+    ~hash_set() {
+        if(!empty()) { /* Not empty. */
+            for(size_t i = 0 ; i != kTABLESIZE ; ++i) {
+                baseptr __p = table[i].real;
+                while(__p) {
+                    baseptr __n = __p->real;
+                    impl.dealloc(static_cast <pointer> (__p));
+                    __p = __n;
+                }
+            }
+        }
+        clear_cache(); 
+        cache.real = nullptr; impl.count = 0;
+    }
+
+    /**
+     * @brief Force to insert a key into the map.
+     * 
+     * @param __k Key to insert.
+     */
     void insert(const key_t &__k) {
         baseptr __p = find_index(__k);
 
@@ -285,10 +309,16 @@ class hash_set {
         __p->real   = __n;
     }
 
-    /* Tries to erase a key from hash_map. */
-    void erase(const key_t &__k) {
+    /**
+     * @brief Tries to erase a key from hash_map.
+     * 
+     * @param __k Key to insert.
+     * @return true 
+     * @return false 
+     */
+    bool erase(const key_t &__k) {
         baseptr __p = find_key(__k);
-        if(!__p->real) return; /* Case: Not found. */
+        if(!__p->real) return false; /* Case: Not found. */
 
         /* Relinking. */
         baseptr __n = __p->real;
@@ -297,13 +327,31 @@ class hash_set {
         /* Deallocate. */
         --impl.count;
         deallocate(__n);
+        return true;
     }
 
     /* Judge whether an element exists in the map. */
     bool exist(const key_t &__k) { return find_key(__k)->real; }
 
+    key_t *find(const key_t &__k) {
+        baseptr __p = find_key(__k)->real;
+        if(!__p) return nullptr; 
+        else return &static_cast <pointer> (__p)->data;
+    }
+
+    /* Locate the key by hash_code. */
+    key_t *find(size_t __h) {
+        baseptr __p = find_hash(__h)->real;
+        if(!__p) return nullptr;
+        else return &static_cast <pointer> (__p)->data;
+    }
+
+
     /* Return count of elements in the map. */
     size_t size() const noexcept { return impl.count; }
+
+    /* Return whether the map is empty. */
+    bool empty() const noexcept { return !impl.count; }
 
     /* Clear all the data within. */
     void clear() {
@@ -318,6 +366,24 @@ class hash_set {
         }
     }
 
+    /* Internal function of moving data to array. */
+    dark::trivial_array <key_t> move_data() {
+        clear_cache();
+        cache.real = nullptr;
+        dark::trivial_array <key_t> __v;
+        if(empty()) return __v;
+        __v.reserve(size());
+        impl.count = 0;
+        for(size_t i = 0 ; i != kTABLESIZE ; ++i) {
+            baseptr __p = table[i].real;
+            while(__p) {
+                baseptr __n = __p->real;
+                __v.copy_back(static_cast <pointer> (__p)->data);
+                impl.dealloc(static_cast <pointer> (__p));
+                __p = __n;
+            }
+        } return __v;
+    }
 };
 
 

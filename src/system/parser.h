@@ -81,7 +81,7 @@ class command_parser {
      * @param c Argument to find.
      * @return nullptr only if not in param.
      */
-    char *get_argument(char c) noexcept
+    char *argument(char c) noexcept
     { return index[c - 'b'] != -1 ? buffer + index[c - 'a'] : nullptr; }
 
 };

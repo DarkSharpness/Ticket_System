@@ -20,11 +20,7 @@ using password_t = string <32>; /* Password of an account. */
 using realname_t = string <16>; /* Real name of the user. */
 using mailaddr_t = string <32>; /* The mail address. */
 
-enum privilege_t : unsigned char; /* Special privilege type. */
-/* Map of privilege to string. */
-const char privilege_table[][3] = {
-    "0","1","2","3","4","5","6","7,","8","9","10"
-};
+using privilege_t = char; /* Special privilege type. */
 
 
 using trainID_t  = string <24>;  /* Train ID string. */
@@ -80,6 +76,14 @@ void write_input() noexcept {
     do { ch = getchar(); } while(is_blank(ch));
     do { putchar(ch); } while(!is_blank(ch = getchar()));
 }
+
+/* Change an input string to privilege.  */
+privilege_t to_privilege(const char *__s) 
+noexcept { return !__s[1] ? *__s ^ '0' : 10; }
+
+/* Write a bool integer as 0/1. */
+void writeline(bool x) { puts(x ? "0" : "-1" ); }
+
 
 }
 

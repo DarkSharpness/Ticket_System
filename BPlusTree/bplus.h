@@ -20,8 +20,8 @@ struct value_pair {
 template <class key_t,class T>
 struct tuple {
     using value_t = value_pair <key_t,T>;
-    value_t v; /* Samllest pair of target node. */
     header head;  /* A small header. */
+    value_t v; /* Smallest pair of target node. */
     /* Copying header info and value. */
     inline void copy(const value_t &__v,header __h)
     { head = __h; v = __v;}
@@ -104,9 +104,10 @@ class tree {
     [[no_unique_address]] val_comp v_comp; /* Value compare function. */
 
     std::pair <file_state,node> __root_pair; /* Do not use it directly. */
+    visitor cache_pointer;
+    bool return_value; /* Return value stored for insert and erase. */
 
     node_file_t file;
-    visitor cache_pointer;
 
    private:
 
@@ -117,6 +118,8 @@ class tree {
      * @param data The array of the pair_t.
      * @param key  Key of the pair.
      * @param val  Value of the pair.
+     * @param l    Left side.
+     * @param r    Right side.
      * @return  Ans in [l,r] if found. || ~Ans if existing identical pair.
      */
     int binary_search(tuple_t *data,const key_t &key,const T &val,int l,int r) {
@@ -131,17 +134,35 @@ class tree {
     }
 
     /**
-     * @brief Search in [l,r) for ans location,
-     * where key[ans - 1] < val <= key[ans] .
+     * @brief Find the first in [l,r) no smaller than key.
      * 
      * @param data The array of the pair_t.
      * @param key  Key of the pair.
-     * @return  Ans in [l,r] if found. || ~Ans if existing identical pair.
+     * @param l    Left side.
+     * @param r    Right side.
+     * @return  First in [l,r] no smaller than key.
      */
     int lower_bound(tuple_t *data,const key_t &key,int l,int r) {
         while(l != r) { /* Find in [l,r) */
             int mid = (l + r) >> 1;
             if(k_comp(key,data[mid].v.key) > 0) l = mid + 1;
+            else r = mid;
+        } return l;
+    }
+
+    /**
+     * @brief Find the first in [l,r) larger than key.
+     * 
+     * @param data The array of the pair_t.
+     * @param key  Key of the pair.
+     * @param l    Left side.
+     * @param r    Right side.
+     * @return  First in [l,r] no smaller than key.
+     */
+    int upper_bound(tuple_t *data,const key_t &key,int l,int r) {
+        while(l != r) { /* Find in [l,r) */
+            int mid = (l + r) >> 1;
+            if(k_comp(key,data[mid].v.key) >= 0) l = mid + 1;
             else r = mid;
         } return l;
     }
@@ -165,7 +186,7 @@ class tree {
     inline visitor allocate() { return file.allocate(); }
 
     /* Insert into an empty tree. */
-    void insert_root(const key_t &key,const T &val) {
+    bool insert_root(const key_t &key,const T &val) {
         /* Allocate one node at outer file. */
         visitor pointer = allocate();
 
@@ -179,10 +200,11 @@ class tree {
         pointer->set_next(MAXN_SIZE,node_type::OUTER);
         pointer->count = 1;
         pointer->data[0].copy(key,val);
+        return true;
     }
 
     /* Split the root node */
-    void split_root() {
+    bool split_root() {
         visitor prev = allocate();
         visitor next = allocate();
 
@@ -203,6 +225,7 @@ class tree {
         root().head(1) = {next.index(),next->count};
 
         root().data[1].v = next->data[0].v;
+        return true;
     }
 
 
@@ -283,10 +306,11 @@ class tree {
      * @param    x    The subscript of the node to split.
      */
     void erase_merge(visitor pointer,int x) {
-        /* Of course , pointer must points to root now. */
+        /* Of course , pointer must point to root now. */
         if(pointer->count == 2 && cache_pointer->is_inner())
             return merge_root(x);
 
+        /* Remove the only element of the tree case. */
         if(pointer->count == 1) {
             if(cache_pointer->count != 0) ++pointer->count;
             else recycle(cache_pointer);
@@ -430,6 +454,7 @@ class tree {
 
         /* Data will be modified. */
         pointer.modify();
+        return_value = true;
 
         /* Insert the key-value pair into the node. */
         mmove(pointer->data + x + 1,pointer->data + x,head.count - x);
@@ -506,6 +531,7 @@ class tree {
 
         /* Data will be modified. */
         pointer.modify();
+        return_value = true;
 
         /* Insert the key-value pair into the node. */
         mmove(pointer->data + x,pointer->data + x + 1,head.count - x - 1);
@@ -568,8 +594,10 @@ class tree {
 
     using return_list = dark::trivial_array <T>;
 
+
     /* No default constructor. */
     tree() = delete;
+
 
     /* Initialize the tree. */
     tree(std::string path1) :
@@ -593,25 +621,41 @@ class tree {
     /* Return whether the tree is empty. */
     bool empty() const noexcept { return !__root_pair.second.count; }
 
+    /* Return count of all space occupied. */
     size_t size() const noexcept { return file.size(); }
 
-    /* Insert a key-value pair into the node. */
-    void insert(const key_t &key,const T &val) {
+
+    /**
+     * @brief Insert a key-value pair into the node.
+     * 
+     * @param key Key to be inserted.
+     * @param val Value to be inserted.
+     * @return Whether the insertion is successful.
+     */
+    bool insert(const key_t &key,const T &val) {
         /* Empty Tree special case. */
         if(empty()) return insert_root(key,val);
-        /* Nothing should be done to root node case. */
-        if(!insert(root(),key,val)) return;
+
+        return_value = false;
         /* When the node under root is too full. */
-        if(root().count > BLOCK_SIZE) split_root();
+        if(insert(root(),key,val) && root().count > BLOCK_SIZE) 
+            return split_root();
+        /* Nothing should be done to root node case. */
+        else return return_value;
     }
 
 
-    /* Erase a key-value pair from the node. */
-    void erase(const key_t &key,const T &val) {
-        /* Empty Tree special case. */
-        if(empty()) return;
-        /* Nothing should be done to root node case. */
-        else erase(root(),key,val);
+    /**
+     * @brief Erase a key-value pair into the node.
+     * 
+     * @param key Key to be inserted.
+     * @param val Value to be inserted.
+     * @return Whether the erasion is successful.
+     */    
+    bool erase(const key_t &key,const T &val) {
+        return_value = false;
+        if(!empty()) erase(root(),key,val);
+        return return_value;
     }
 
 
@@ -641,6 +685,25 @@ class tree {
                 v.push_back(pointer->data[x++].v.val);
             }
         }
+    }
+
+
+    /* Find reference to data , only when there exists only one value tied to key. */
+    T *get_reference(const key_t &key) {
+        if(empty()) return nullptr;
+        header head = root();
+        /* Find the real inner node. */
+        while(head.is_inner()) {
+            visitor pointer = get_pointer(head);
+            int x = upper_bound(pointer->data,key,0,head.count);
+            if(x == 0) return nullptr; /* Not found case. */
+            head = pointer->head(x - 1);
+        }
+        /* The real outer node. */
+        visitor pointer = get_pointer(head);
+        int x = lower_bound(pointer->data,key,0,head.count);
+        if(k_comp(key,pointer->data[x].v.key)) return nullptr;
+        else return &pointer->data[x].v.val;
     }
 
 
