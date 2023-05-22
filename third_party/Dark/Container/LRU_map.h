@@ -21,7 +21,7 @@ template <
     class Hash    = std::hash <key_t>,
     class Compare = std::equal_to <key_t>
 > 
-class LRU_map {
+class linked_hash_map {
   public:
     using value_t = std::pair <key_t,T>;
     struct iterator;
@@ -32,8 +32,8 @@ class LRU_map {
     using list_node = list::node_base;
     using baseptr   = hash::baseptr;
     using listptr   = list::baseptr;
-    using node      = hash::node <value_t>;
-    using pointer   = hash::node <value_t> *;
+    using node      = hash::linked_node <value_t>;
+    using pointer   = hash::linked_node <value_t> *;
     using Implement = implement <node,std::allocator <node>,Compare,Hash>;
 
   private:
@@ -75,12 +75,11 @@ class LRU_map {
     }
 
     /* Find the previous baseptr in the map.  */
-    baseptr find(const key_t &__k) {
+    baseptr find_key(const key_t &__k) {
         baseptr __p = find_index(__k);
         while(__p->real) {
             if( /* Given key equal to the key of current node. */
-                Compare(impl) (
-                __k,
+                Compare(impl) ( __k,
                 static_cast <pointer> (__p->real) -> data.first)
             ) break;
             __p = __p->real;
@@ -89,9 +88,9 @@ class LRU_map {
 
   public:
 
-    LRU_map() noexcept : header({&header,&header}) {}
+    linked_hash_map() noexcept : header({&header,&header}) {}
 
-    ~LRU_map() {
+    ~linked_hash_map() {
         listptr __p = header.next;
         while(__p != &header) {
             listptr __n = __p->next; /* Next node. */
@@ -121,9 +120,9 @@ class LRU_map {
         return {__p}; /* Return iterator to previous hash node. */
     }
 
-    /* Tries to erase a key from hash_map. */
+    /* Try to erase a key from hash_map. */
     void erase(const key_t &__k) {
-        baseptr __p = find(__k);
+        baseptr __p = find_key(__k);
         if(!__p->real) return; /* Case: Not found. */
 
         /* Relinking. */
@@ -138,7 +137,7 @@ class LRU_map {
 
     /* Find the previous node in hash_map and access it.  */
     iterator find_pre(const key_t &__k) {
-        baseptr __p = find(__k);
+        baseptr __p = find_key(__k);
         if(__p->real) access(__p->real);
         return {__p};
     }
@@ -149,6 +148,7 @@ class LRU_map {
     /* Return count of elements in the map. */
     size_t size() const noexcept { return impl.count; }
 
+    /* Clear all the data within. */
     void clear() {
         listptr __p = header.next;
         while(__p != &header) {
@@ -189,8 +189,135 @@ class LRU_map {
     iterator begin() { return { static_cast <pointer> (header.next) }; }
     iterator end()   { return { static_cast <pointer> (&header) }; }
 
-    friend bool operator != (const iterator &lhs,const iterator &rhs) 
+    friend bool operator != (const iterator &lhs,const iterator &rhs)
     noexcept { return lhs.base() != rhs.base(); }
+};
+
+/**
+ * @brief Set for homework only. Do not use it!
+ * 
+ */
+template <
+    class key_t,
+    size_t kTABLESIZE,
+    class Hash    = std::hash <key_t>,
+    class Compare = std::equal_to <key_t>
+> 
+class hash_set {
+  private:
+
+    using node_base = hash::node_base;
+    using baseptr   = hash::baseptr;
+    using node      = hash::node <key_t>;
+    using pointer   = hash::node <key_t> *;
+    using Implement = implement <node,std::allocator <node>,Compare,Hash>;
+
+  private:
+
+    Implement impl;     /* Implement of the map. */ 
+    node_base cache;    /* Custom memory pool. */
+    node_base table[kTABLESIZE]; /* Hash table. */
+
+  private:
+
+    /* Return the first pointer by given key. */
+    baseptr find_index(const key_t &__k) noexcept
+    { return &table[Hash(impl)(__k) % kTABLESIZE]; }
+
+    /* Allocate one node with given key and value. */
+    baseptr allocate(const key_t &__k) {
+        if(cache.real) { /* Allocate from cache if available. */
+            baseptr temp = cache.real; 
+            cache.real   = temp->real;
+            static_cast <pointer> (temp)->data = __k;
+            return temp;
+        } else return impl.alloc(hash::forward_tag(),__k);
+    }
+
+    /* Deallocate one node after given pointer. */
+    void deallocate(baseptr __p) {
+        __p->real  = cache.real;
+        cache.real = __p;
+    }
+
+    /* Find the previous baseptr in the map.  */
+    baseptr find_key(const key_t &__k) {
+        baseptr __p = find_index(__k);
+        while(__p->real) {
+            if( /* Given key equal to the key of current node. */
+                Compare(impl) ( __k,
+                static_cast <pointer> (__p->real) -> data)
+            ) break;
+            __p = __p->real;
+        } return __p;
+    }
+
+  public:
+
+    hash_set() noexcept = default;
+
+    ~hash_set() {
+        for(size_t i = 0 ; i != kTABLESIZE ; ++i) {
+            baseptr __p = table[i].real;
+            while(__p) {
+                baseptr __n = __p->real;
+                impl.dealloc(static_cast <pointer> (__p));
+                __p = __n;
+            }
+        }
+        while(cache.real) {
+            baseptr __p = cache.real;
+            cache.real  = __p->real;
+            impl.dealloc(static_cast <pointer> (__p));
+        }
+    }
+
+    /* Forces to insert a key-value pair. */
+    void insert(const key_t &__k) {
+        baseptr __p = find_index(__k);
+
+        /* Allocate. */
+        ++impl.count;
+        baseptr __n = allocate(__k);
+
+        /* Relinking. */
+        __n->real   = __p->real;
+        __p->real   = __n;
+    }
+
+    /* Tries to erase a key from hash_map. */
+    void erase(const key_t &__k) {
+        baseptr __p = find_key(__k);
+        if(!__p->real) return; /* Case: Not found. */
+
+        /* Relinking. */
+        baseptr __n = __p->real;
+        __p->real   = __n->real;
+
+        /* Deallocate. */
+        --impl.count;
+        deallocate(__n);
+    }
+
+    /* Judge whether an element exists in the map. */
+    bool exist(const key_t &__k) { return find_key(__k)->real; }
+
+    /* Return count of elements in the map. */
+    size_t size() const noexcept { return impl.count; }
+
+    /* Clear all the data within. */
+    void clear() {
+        for(size_t i = 0 ; i != kTABLESIZE ; ++i) {
+            baseptr __p = table[i].real;
+            table[i].real = nullptr;
+            while(__p) { /* Clear the list. */
+                baseptr __n = __p->real;
+                deallocate(__p);
+                __p = __n;
+            }
+        }
+    }
+
 };
 
 

@@ -26,7 +26,7 @@ class file_manager {
     struct visitor; /* Declaration. */
 
   private:
-    using map_t    = LRU_map <file_state,T,table_size>;
+    using map_t    = linked_hash_map <file_state,T,table_size>;
     using iterator = typename map_t::iterator;
 
     rubbish_bin  bin;      /* Rubbish bin. */
