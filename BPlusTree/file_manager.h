@@ -124,8 +124,8 @@ class file_manager {
         return insert_map({bin.allocate(),1});
     }
 
-    /* Skip the last block. Users should manager the block themselves. */
-    void init() { bin.init(); }
+    /* Skip the last block. Users should manage the block themselves. */
+    void init() { bin.skip_block(); }
 
     /* Read object from disk at given index. */
     void read_object(T &obj,int index) {

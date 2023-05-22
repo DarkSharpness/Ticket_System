@@ -13,8 +13,9 @@ namespace dark {
  */
 class rubbish_bin {
   private:
-    std::fstream bin_file; /* First 16 Byte : total and count. Then data array. */
+    std::fstream bin_file; /* First 24 Byte : total,space and count. Then data array. */
     size_t total; /* Count of nodes. */
+    size_t space; /* Count of block skipped. */
     trivial_array <int> bin_array;  /* Cache of unused nodes. */
 
   public:
@@ -24,28 +25,29 @@ class rubbish_bin {
         bin_file(__bin,std::ios::in | std::ios::out | std::ios::binary) {
         if(!bin_file.good()) {
             bin_file.close(); bin_file.open(__bin,std::ios::out | std::ios::binary);
-            std::pair <size_t,size_t> buffer(0,0);
+            std::tuple <size_t,size_t,size_t> buffer(0,0,0);
             bin_file.write((char *)&buffer,sizeof(buffer));
-            total = 0;
+            total = space = 0;
         } else {
             /* Read buffer. */
-            std::pair <size_t,size_t> buffer;
+            std::tuple <size_t,size_t,size_t> buffer;
             bin_file.read((char *)&buffer,sizeof(buffer));
 
             /* Update info. */
-            total = buffer.first;
+            total = std::get <0> (buffer);
+            space = std::get <1> (buffer);
 
-            bin_array.resize(buffer.second);
-            bin_file.read((char *)bin_array.data(),buffer.second * sizeof(int));
+            bin_array.resize(std::get <2> (buffer));
+            bin_file.read((char *)bin_array.data(),std::get <2> (buffer) * sizeof(int));
         }
     }
 
     /* Write bin data to disk. */
     ~rubbish_bin() {
-        std::pair <size_t,size_t> buffer(total,bin_array.size());
+        std::tuple <size_t,size_t,size_t> buffer(total,space,bin_array.size());
         bin_file.seekp(0);
         bin_file.write((char *)&buffer,sizeof(buffer));
-        bin_file.write((char *)bin_array.data(),buffer.second * sizeof(int));
+        bin_file.write((char *)bin_array.data(),std::get <2>(buffer) * sizeof(int));
         bin_file.close();
     }
 
@@ -61,15 +63,15 @@ class rubbish_bin {
     /* Return count of all nodes. */
     size_t size() const noexcept { return total; }
 
-    /* Skip the last block. Users should manager the block themselves. */
-    void init() { total = 1; }
+    /* Skip the last block. Only use it when initializing. */
+    void skip_block() { ++total; ++space; }
 
-    /* Reset the  */
+    /* Reset the data to 0. */
     void reset() {
         bin_array.clear();
-        bin_array.resize(total - 1);
-        for(size_t i = 0 ; i != total - 1 ; ++i)
-            bin_array[i] = i + 1;
+        bin_array.resize(total - space);
+        for(size_t i = space ; i != total ; ++i)
+            bin_array[i - space] = i;
     }
 
 };
