@@ -1,13 +1,15 @@
-#ifndef _DARK_TICKET_SYSTEM_H_
-#define _DARK_TICKET_SYSTEM_H_
+#ifndef _TICKET_SYSTEM_H_
+#define _TICKET_SYSTEM_H_
+
 #include "header.h"
-#include "user_system.h"
 #include "parser.h"
+#include "train_system.h"
+#include "user_system.h"
 
 namespace dark {
 
 
-class ticket_system : command_parser,user_system  {
+class ticket_system : command_parser,train_system,user_system  {
   private:
 
     void add_user() {
@@ -44,11 +46,26 @@ class ticket_system : command_parser,user_system  {
         );
     }
 
-    void add_train() {}
+    void add_train() {
+        dark::writeline(
+            train_system::add_train(argument('i'),argument('n'),
+                                    argument('m'),argument('s'),
+                                    argument('p'),argument('x'),
+                                    argument('t'),argument('o'),
+                                    argument('d'),argument('y'))
+        );
+    }
 
-    void delete_train() {}
+    void delete_train() {
+        dark::writeline(
+            train_system::delete_train(argument('i'))
+        );
+    }
 
-    void release_train() {}
+    void release_train() {
+        dark::writeline(
+        );
+    }
 
     void query_train() {}
 
@@ -67,7 +84,11 @@ class ticket_system : command_parser,user_system  {
     void quit() { dark::writeline("bye"); }
   public:
     
-    ticket_system() : command_parser(),user_system("bin/user") {}
+    ticket_system() :
+        command_parser(),
+        train_system("bin/train_map","bin/train_dat","bin/seats_dat"),
+        user_system("bin/user") {}
+
     /**
      * @brief Switch part of the function.
      * 

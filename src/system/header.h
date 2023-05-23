@@ -8,9 +8,11 @@
 #ifndef _TICKET_HEADER_H_
 #define _TICKET_HEADER_H_
 
-#include "../basic/utility.h"
 #include "../basic/account.h"
-#include "../basic/calendar.h"
+#include "../basic/order.h"
+#include "../basic/time.h"
+#include "../basic/train.h"
+
 #include "../../BPlusTree/bplus.h"
 
 namespace dark {

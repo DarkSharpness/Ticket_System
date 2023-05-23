@@ -1,5 +1,5 @@
-#ifndef _DARK_ACCOUNT_H_
-#define _DARK_ACCOUNT_H_
+#ifndef _TICKET_ACCOUNT_H_
+#define _TICKET_ACCOUNT_H_
 
 #include "utility.h"
 
@@ -17,7 +17,7 @@ struct account {
     account(const char *__u,const char *__p,const char *__n,
             const char *__m,privilege_t __g)
     noexcept : user(__u),pswd(__p),name(__n),mail(__m) 
-    { level() = __g; login() = false; }
+    { level() = __g; login() = false; count() = 0; }
 
     void copy(const char *__u,const char *__p,const char *__n,
               const char *__m,privilege_t __g) noexcept {
@@ -26,17 +26,24 @@ struct account {
         level() = __g;
     }
 
-    /* Return the user's level. */
-    privilege_t &level() noexcept { return user[sizeof(user) - 1]; }
-
-    /* Return whether the user have logged in. */
-    char &login() noexcept { return user[sizeof(user) - 2]; }
+    /* Return count of order of the user. */
+    short &count() noexcept 
+    { return *(short *)(user.base() + (sizeof(user) - sizeof(short))); }
 
     /* Return the user's level. */
-    privilege_t level() const noexcept { return user[sizeof(user) - 1]; }
+    privilege_t &level() noexcept { return mail[sizeof(mail) - 1]; }
 
     /* Return whether the user have logged in. */
-    bool login() const noexcept { return user[sizeof(user) - 2]; }
+    char &login() noexcept { return pswd[sizeof(pswd) - 1]; }
+
+    short count() const noexcept
+    { return *(const short *)(user.base() + (sizeof(user) - sizeof(short))); }
+
+    /* Return the user's level. */
+    privilege_t level() const noexcept { return mail[sizeof(mail) - 1]; }
+
+    /* Return whether the user have logged in. */
+    bool login() const noexcept { return pswd[sizeof(pswd) - 1]; }
 };
 
 /* Write a line of privilege. */

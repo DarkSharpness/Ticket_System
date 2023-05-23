@@ -1,5 +1,5 @@
-#ifndef _DARK_COMMAND_H_
-#define _DARK_COMMAND_H_
+#ifndef _TICKET_PARSER_H_
+#define _TICKET_PARSER_H_
 
 #include "header.h"
 #include <Dark/inout>
@@ -59,8 +59,10 @@ class command_parser {
 
         /* DEBUG only! */
         size_t time_stamp = dark::read <size_t> ();
-        if(time_stamp == 1878)
-            time_stamp = time_stamp * 2 - 1878;
+
+        if(time_stamp == 3403)
+            time_stamp = time_stamp * 2 - 3403;
+
         dark::print('[',time_stamp,']',' ');
 
         /* Then , get command. */

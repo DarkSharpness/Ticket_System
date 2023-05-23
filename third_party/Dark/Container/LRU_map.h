@@ -215,7 +215,7 @@ class hash_set {
 
   private:
 
-    Implement impl;     /* Implement of the map. */ 
+    Implement impl;     /* Implement of the set. */ 
     node_base cache;    /* Custom memory pool. */
     node_base table[kTABLESIZE]; /* Hash table. */
 
@@ -241,7 +241,7 @@ class hash_set {
         cache.real = __p;
     }
 
-    /* Find the previous baseptr in the map.  */
+    /* Find the previous baseptr in the map by key.  */
     baseptr find_key(const key_t &__k) {
         baseptr __p = find_index(__k);
         while(__p->real) {
@@ -253,6 +253,7 @@ class hash_set {
         } return __p;
     }
 
+    /* Find the previous baseptr in the map by hash.  */
     baseptr find_hash(size_t __h) {
         baseptr __p = &table[__h % kTABLESIZE];
         while(__p->real) {
@@ -293,7 +294,7 @@ class hash_set {
     }
 
     /**
-     * @brief Force to insert a key into the map.
+     * @brief Force to insert a key into the set.
      * 
      * @param __k Key to insert.
      */
@@ -310,11 +311,9 @@ class hash_set {
     }
 
     /**
-     * @brief Tries to erase a key from hash_map.
+     * @brief Tries to erase a key from the set.
      * 
-     * @param __k Key to insert.
-     * @return true 
-     * @return false 
+     * @param __k Key to erase.
      */
     bool erase(const key_t &__k) {
         baseptr __p = find_key(__k);
@@ -330,9 +329,57 @@ class hash_set {
         return true;
     }
 
-    /* Judge whether an element exists in the map. */
+    /**
+     * @brief Tries to erase a key from the set by its hash code.
+     * 
+     * @param __h Hash code.
+     */
+    bool erase(size_t __h) {
+        baseptr __p = find_hash(__h);
+        if(!__p->real) return false; /* Case: Not found. */
+
+        /* Relinking. */
+        baseptr __n = __p->real;
+        __p->real   = __n->real;
+
+        /* Deallocate. */
+        --impl.count;
+        deallocate(__n);
+        return true;
+    }
+
+    /**
+     * @brief Tries to erase a key from the set by its hash code,
+     * if the key satisfy the test function
+     * 
+     * @param __h  Hash code.
+     * @param func Test function.
+     */
+    template <class tester>
+    bool erase_if(size_t __h,tester &&func) {
+        baseptr __p = find_hash(__h);
+        
+        /* Not found  || Don't satisfy.  */
+        if(!__p->real || func(static_cast <pointer> (__p->real)->data)) 
+            return false;
+
+        /* Relinking. */
+        baseptr __n = __p->real;
+        __p->real   = __n->real;
+
+        /* Deallocate. */
+        --impl.count;
+        deallocate(__n);
+        return true;
+    }
+
+    /* Judge whether an element exists in the set. */
     bool exist(const key_t &__k) { return find_key(__k)->real; }
 
+    /* Judge whether an element exists in the set. */
+    bool exist(size_t __h)       { return find_hash(__h)->real; }
+
+    /* Locate the key by key(?) */
     key_t *find(const key_t &__k) {
         baseptr __p = find_key(__k)->real;
         if(!__p) return nullptr; 
@@ -347,10 +394,10 @@ class hash_set {
     }
 
 
-    /* Return count of elements in the map. */
+    /* Return count of elements in the set. */
     size_t size() const noexcept { return impl.count; }
 
-    /* Return whether the map is empty. */
+    /* Return whether the set is empty. */
     bool empty() const noexcept { return !impl.count; }
 
     /* Clear all the data within. */

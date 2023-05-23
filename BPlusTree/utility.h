@@ -69,23 +69,6 @@ struct Compare_Int {
     const noexcept { return lhs - rhs; }
 };
 
-
-/* Simple wrapper of fstream read-in function. */
-template <class T>
-struct reading_func {
-    inline void operator ()(std::fstream &__f,T &obj)
-    { __f.read((char *)(&obj),sizeof(T)); }
-};
-
-
-/* Simple wrapper of fstream write function. */
-template <class T>
-struct writing_func {
-    inline void operator ()(std::fstream &__f,const T &obj)
-    { __f.write((const char *)(&obj),sizeof(T)); }
-};
-
-
 }
 
 

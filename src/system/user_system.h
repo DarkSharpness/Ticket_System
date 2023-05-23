@@ -7,51 +7,26 @@ namespace dark {
 
 class user_system {
   private:
-    using set_t = hash_set <account,8093>;
+    using set_t = external_hash_set <account,8093>;
 
-    std::fstream file;
-    set_t user_set; /* Users that have logged in. */
+    set_t user_set; /* Set of user data. */
     account temp;   /* Temp account info. */
+
+    struct modify_function 
+    { void operator()(account &__a) const noexcept { __a.login() = false; } };
 
   public:
 
-    user_system(std::string __path) {
-        __path += ".bin";
-        file.open(__path,std::ios::in | std::ios::out | std::ios::binary);
-        if(!file.good()) {
-            file.close(); file.open(__path,std::ios::out | std::ios::binary);
-        } else { /* Read from memory. */
-            /* First read count. */
-            file.seekg(0); size_t count;
-            file.read((char *)&count,sizeof(count));
+    user_system(std::string __path)
+    : user_set(std::move(__path),modify_function()) {}
 
-            /* Construct the array for read-in. */
-            dark::trivial_array <account> t; t.resize(count);
-            file.read((char *)&t,count * sizeof(account));
+    ~user_system() = default;
 
-            /* Fill the set with data. */
-            for(auto &&iter : t) {
-                iter.login() = false;
-                user_set.insert(iter);
-            }
-        }
-    }
-
-    ~user_system() {
-        file.seekp(0);
-        dark::trivial_array <account> t = user_set.move_data();
-        /* First write count */
-        size_t count = t.size();
-        file.write((const char *)&count,sizeof(count));
-
-        /* Next write main data.  */
-        file.write((const char *)&t,count * sizeof(account));
-    }
-
-
+    /* Return whether add_user succeed. */
     bool add_user(const char *__c,const char *__u,const char *__p,
                   const char *__n,const char *__m,const char *__g) {
         temp.login() = false;
+        temp.count() = 0;
 
         if(user_set.empty()) { /* First insert. */
             temp.copy(__u,__p,__n,__m,10);
@@ -69,7 +44,7 @@ class user_system {
         temp.user = __u;
         if(user_set.exist(temp)) return false;
 
-        /* Sure to insert into the map. */
+        /* Be ready to insert into the map. */
         temp.pswd = __p;
         temp.name = __n;
         temp.mail = __m;
@@ -78,6 +53,8 @@ class user_system {
         return true;
     }
 
+
+    /* Return whether login succeed. */
     bool login(const char *__u,const char *__p) {
         auto *__a = user_set.find(string_hash(__u)); /* Account pointer. */
         
@@ -86,13 +63,17 @@ class user_system {
         else return (__a->login() = true);
     }
 
+
+    /* Return whether logout succeed. */
     bool logout(const char *__u) {
         auto __a = user_set.find(string_hash(__u));
         /* No such user || Not logged in. */
         if(!__a || !__a->login()) return false;
-        return !(__a->login() = false); 
+        return !(__a->login() = false);
     }
 
+
+    /* Return pointer to user's profile. */
     account *query_profile(const char *__c,const char *__u) {
         auto *__a = user_set.find(string_hash(__c)); /* Account pointer of __c. */
 
@@ -108,6 +89,7 @@ class user_system {
         else return __t;
     }
 
+    /* Return pointer to user's profile. */
     account *modify_profile(const char *__c,const char *__u,const char *__p,
                             const char *__n,const char *__m,const char *__g) {
         auto *__a = user_set.find(string_hash(__c)); /* Account pointer of __c. */
@@ -115,7 +97,7 @@ class user_system {
         /* No current user || Not logged in || Not enough level.  */
         if(!__a || __a->login() == false) return nullptr;
     
-        decltype(__a) __t;
+        decltype(__a) __t; /* Lazy...... */
         if(strcmp(__c,__u) != 0) { /* Not identical __c and __u. */
             __t = user_set.find(string_hash(__u)); /* Account pointer of __u. */
             /* No target user || Not enough level */
@@ -134,6 +116,11 @@ class user_system {
         return __t;
     }
 
+    /* Return pointer to count of __u's orders. */
+    short *query_order(const char *__u) {
+        auto *__a = user_set.find(string_hash(__u));
+        return __a ? &__a->count() : nullptr;   
+    }
 
 
 };

@@ -12,16 +12,21 @@ struct string {
 
     string() noexcept { str[0] = '\0'; };
 
+    /* Construct from c-string. */
     string(const char *rhs) noexcept { strcpy(str,rhs); }
 
     string(const string &rhs) = default;
 
+    /* Copy from another string. */
     string &operator = (const string &rhs) = default;
 
+    /* Copy from another c-string. */
     string &operator = (const char *rhs) { strcpy(str,rhs); return *this; }
 
     char &operator [](size_t __n) noexcept { return str[__n]; }
     const char &operator [](size_t __n) const noexcept { return str[__n]; }
+
+    char *base() noexcept { return str; }
 
     const char *base() const noexcept { return str; }
 };

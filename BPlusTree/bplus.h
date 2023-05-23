@@ -85,7 +85,7 @@ class tree {
     };
 
     using node_file_t =
-            file_manager <
+            cached_file_manager <
                 node,
                 TABLE_SIZE,
                 CACHE_SIZE,
@@ -105,8 +105,6 @@ class tree {
 
     std::pair <file_state,node> __root_pair; /* Do not use it directly. */
     visitor cache_pointer;
-    bool return_value; /* Return value stored for insert and erase. */
-
     node_file_t file;
 
    private:
@@ -186,7 +184,7 @@ class tree {
     inline visitor allocate() { return file.allocate(); }
 
     /* Insert into an empty tree. */
-    bool insert_root(const key_t &key,const T &val) {
+    void insert_root(const key_t &key,const T &val) {
         /* Allocate one node at outer file. */
         visitor pointer = allocate();
 
@@ -200,11 +198,10 @@ class tree {
         pointer->set_next(MAXN_SIZE,node_type::OUTER);
         pointer->count = 1;
         pointer->data[0].copy(key,val);
-        return true;
     }
 
     /* Split the root node */
-    bool split_root() {
+    void split_root() {
         visitor prev = allocate();
         visitor next = allocate();
 
@@ -225,7 +222,6 @@ class tree {
         root().head(1) = {next.index(),next->count};
 
         root().data[1].v = next->data[0].v;
-        return true;
     }
 
 
@@ -454,7 +450,6 @@ class tree {
 
         /* Data will be modified. */
         pointer.modify();
-        return_value = true;
 
         /* Insert the key-value pair into the node. */
         mmove(pointer->data + x + 1,pointer->data + x,head.count - x);
@@ -531,7 +526,6 @@ class tree {
 
         /* Data will be modified. */
         pointer.modify();
-        return_value = true;
 
         /* Insert the key-value pair into the node. */
         mmove(pointer->data + x,pointer->data + x + 1,head.count - x - 1);
@@ -632,16 +626,12 @@ class tree {
      * @param val Value to be inserted.
      * @return Whether the insertion is successful.
      */
-    bool insert(const key_t &key,const T &val) {
+    void insert(const key_t &key,const T &val) {
         /* Empty Tree special case. */
         if(empty()) return insert_root(key,val);
 
-        return_value = false;
         /* When the node under root is too full. */
-        if(insert(root(),key,val) && root().count > BLOCK_SIZE) 
-            return split_root();
-        /* Nothing should be done to root node case. */
-        else return return_value;
+        if(insert(root(),key,val) && root().count > BLOCK_SIZE) split_root();
     }
 
 
@@ -652,10 +642,8 @@ class tree {
      * @param val Value to be inserted.
      * @return Whether the erasion is successful.
      */    
-    bool erase(const key_t &key,const T &val) {
-        return_value = false;
+    void erase(const key_t &key,const T &val) {
         if(!empty()) erase(root(),key,val);
-        return return_value;
     }
 
 
