@@ -47,14 +47,14 @@ struct account {
 };
 
 /* Write a line of privilege. */
-void writeline_privilege(const privilege_t &__p) {
+void writeline_privilege(const privilege_t &__p) noexcept {
     if(__p != 10) { putchar(__p ^ '0'); }
     else {  putchar('1'); putchar('0'); }
     putchar('\n');
 }
 
 /* Only writeline will be used for accounts. */
-void writeline(const account &__a) {
+void writeline(const account &__a) noexcept {
     dark::write(__a.user,
                 __a.name,
                 __a.mail);
@@ -63,7 +63,7 @@ void writeline(const account &__a) {
 }
 
 /* Only writeline will be used for accounts. */
-void writeline(account *__a) {
+void writeline(account *__a) noexcept {
     if(!__a) dark::writeline("-1");
     else     dark::writeline(*__a);
 }

@@ -9,8 +9,6 @@
 #define _TICKET_HEADER_H_
 
 #include "../basic/account.h"
-#include "../basic/order.h"
-#include "../basic/time.h"
 #include "../basic/train.h"
 
 #include "../../BPlusTree/bplus.h"

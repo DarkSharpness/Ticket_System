@@ -64,6 +64,7 @@ class ticket_system : command_parser,train_system,user_system  {
 
     void release_train() {
         dark::writeline(
+            train_system::release_train(argument('i'))
         );
     }
 

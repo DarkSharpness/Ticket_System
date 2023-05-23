@@ -3,7 +3,6 @@
 
 
 #include "utility.h"
-#include "time.h"
 
 
 namespace dark {
@@ -30,14 +29,15 @@ struct train {
               const char *__m,const char *__s,
               const char *__p,const char *__x,
               const char *__t,const char *__o,
-              const char *__d,const char *__y) {
+              const char *__d,const char *__y)
+    noexcept {
         tid      = __i;
         stat_num = to_unsigned_integer <number_t> (__n);
         seat_num = to_unsigned_integer <number_t> (__m);
-        start    = to_time(__x);
-        get_date(sale_beg,sale_end,__d);
+        start    = time_to_calendar(__x);
         type     = to_type(__y);
 
+        get_dates(sale_beg,sale_end,__d);
         get_strings (names,__s);
         get_integers(price,__p);
         get_integers(travel_time,__t);
@@ -62,7 +62,7 @@ struct train_state {
     int index_data; /* Index of train data.    */
     int index_seat; /* Index of train seat. */
 
-    bool is_released() { return index_seat != -1; }
+    bool is_released() const noexcept { return index_seat != -1; }
 };
 
 

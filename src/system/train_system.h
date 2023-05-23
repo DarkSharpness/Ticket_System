@@ -58,8 +58,17 @@ class train_system {
     }
 
     bool release_train(const char *__i) {
+        auto __t = train_set.find(string_hash(__i));
         
+        /* No such train || Has been released. */
+        if(!__t || __t->is_released()) return false;
 
+        __t->index_seat = seat_file.allocate();
+        data_file.read_object(cache_train,__t->index_data);
+
+        int beg;
+
+        return true;
     }
 
 };

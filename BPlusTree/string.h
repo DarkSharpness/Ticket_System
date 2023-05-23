@@ -67,6 +67,7 @@ void write(const string <__n> &str) { write(str.base()); }
 template <size_t __n>
 void writeline(const string <__n> &str) { writeline(str.base()); }
 
+/* Hash a c-string. */
 size_t string_hash(const char *__s) noexcept {
     static size_t fix_random = rand();
     size_t __h = fix_random;
