@@ -75,6 +75,12 @@ size_t string_hash(const char *__s) noexcept {
     return __h;
 }
 
+
+/* Hash a string. */
+template <size_t __n>
+size_t string_hash(const string <__n> &__s) noexcept 
+{ return string_hash(__s.base()); }
+
 }
 
 namespace std {

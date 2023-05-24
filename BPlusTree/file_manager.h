@@ -113,16 +113,10 @@ class cached_file_manager {
     }
 
     /* Recycle an old node. */
-    void recycle(int index) {
-        bin.recycle(index);           /* Recycle first to rubbish bin. */
-        map.erase({index,0});         /* Erase element from map. */
-    }
+    void recycle(int index) { bin.recycle(index); map.erase({index,0}); }
 
     /* Allocate a new node for further modification. */
-    visitor allocate() {
-        /* Of course, newly allocated node will be modified. */
-        return insert_map({bin.allocate(),1});
-    }
+    visitor allocate() { return insert_map({bin.allocate(),1}); }
 
     /* Skip the last block. Users should manage the block themselves. */
     void init() { bin.skip_block(); }
@@ -132,20 +126,16 @@ class cached_file_manager {
         dat_file.seekg(index * page_size);
         dat_file.read((char *)&obj,page_size);
     }
+
     /* Write object to disk at given index. */
     void write_object(const T &obj,int index) {
         dat_file.seekp(index * page_size);
         dat_file.write((const char *)&obj,page_size);
     }
 
-    /* Clear the data within. */
-    void clear() {
-        bin.reset();
-        map.clear();
-    }
-
     /* Count of all nodes. */
     size_t size() const noexcept { return bin.size(); }
+
     /* Whether node count is zero. */
     bool empty() const noexcept { return !bin.size(); }
 };
@@ -212,7 +202,7 @@ template <
     class T,
     size_t kTABLESIZE
 >
-class external_hash_set : public hash_set <T,kTABLESIZE> {
+class external_hash_set : public linked_hash_set <T,kTABLESIZE> {
   private:
     std::fstream file;
     /* Do nothing. */
@@ -221,7 +211,7 @@ class external_hash_set : public hash_set <T,kTABLESIZE> {
 
     template <class function = empty_function>
     external_hash_set(std::string __path,function &&modify = empty_function()) {
-        __path += ".bin";
+        __path += ".dat";
         file.open(__path,std::ios::in | std::ios::out | std::ios::binary);
         if(!file.good()) {
             file.close(); file.open(__path,std::ios::out | std::ios::binary);
@@ -243,7 +233,11 @@ class external_hash_set : public hash_set <T,kTABLESIZE> {
     }
 
     ~external_hash_set() {
-        dark::trivial_array <T> t = this->move_data();
+        this->shrink(); /* Release space first in case of MLE. */
+        dark::trivial_array <T> t;
+        t.reserve(this->size());
+        for(auto &&iter : *this) t.copy_back(iter);
+
         /* First write count */
         file.seekp(0);
         size_t count = t.size();

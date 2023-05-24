@@ -676,35 +676,23 @@ class tree {
     }
 
 
-    /* Find reference to data , only when there exists only one value tied to key. */
-    T *get_reference(const key_t &key) {
-        if(empty()) return nullptr;
-        header head = root();
-        /* Find the real inner node. */
-        while(head.is_inner()) {
-            visitor pointer = get_pointer(head);
-            int x = upper_bound(pointer->data,key,0,head.count);
-            if(x == 0) return nullptr; /* Not found case. */
-            head = pointer->head(x - 1);
-        }
-        /* The real outer node. */
-        visitor pointer = get_pointer(head);
-        int x = lower_bound(pointer->data,key,0,head.count);
-        if(k_comp(key,pointer->data[x].v.key)) return nullptr;
-        else return &pointer->data[x].v.val;
-    }
-
-
-    /**
-     * @brief Clear all the data in the map.
-     * 
-     */
-    void clear() {
-        if(empty()) return;
-        root_state().modify();
-        root().count = 0; /* No node. */
-        file.clear();
-    }
+    // /* Find reference to data , only when there exists only one value tied to key. */
+    // T *get_reference(const key_t &key) {
+    //     if(empty()) return nullptr;
+    //     header head = root();
+    //     /* Find the real inner node. */
+    //     while(head.is_inner()) {
+    //         visitor pointer = get_pointer(head);
+    //         int x = upper_bound(pointer->data,key,0,head.count);
+    //         if(x == 0) return nullptr; /* Not found case. */
+    //         head = pointer->head(x - 1);
+    //     }
+    //     /* The real outer node. */
+    //     visitor pointer = get_pointer(head);
+    //     int x = lower_bound(pointer->data,key,0,head.count);
+    //     if(k_comp(key,pointer->data[x].v.key)) return nullptr;
+    //     else return &pointer->data[x].v.val;
+    // }
 
 };
 

@@ -3,9 +3,10 @@
 
 #include "utility.h"
 
+
 namespace dark {
 
-/* Account */
+/* Account info holder. */
 struct account {
     username_t user; /* Username. */
     password_t pswd; /* Password. */
@@ -46,12 +47,24 @@ struct account {
     bool login() const noexcept { return pswd[sizeof(pswd) - 1]; }
 };
 
-/* Write a line of privilege. */
-void writeline_privilege(const privilege_t &__p) noexcept {
-    if(__p != 10) { putchar(__p ^ '0'); }
-    else {  putchar('1'); putchar('0'); }
-    putchar('\n');
+
+/* Order info holder. */
+struct order {
+    realtrainID_t id; /* trainID */
+    stationName_t fr; /* Departure. */
+    stationName_t to; /* Terminal. */
+    calendar leaving; /* Leaving time. */
+    calendar arrival; /* Arrival time. */
+    prices_t   price; /* Sum of prices.  */
+    number_t   seats; /* Count of seats. */
+};
+
+
+
 }
+
+
+namespace dark {
 
 /* Only writeline will be used for accounts. */
 void writeline(const account &__a) noexcept {
@@ -76,6 +89,7 @@ struct Compare <account> {
 
 }
 
+
 namespace std {
 
 template <>
@@ -92,7 +106,6 @@ struct equal_to <::dark::account> {
 
 
 }
-
 
 
 #endif

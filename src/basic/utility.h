@@ -10,15 +10,18 @@
 #include "../../BPlusTree/utility.h"
 #include "../../BPlusTree/string.h"
 
+
 /* Some declarations and defines. */
 namespace dark {
 
-/* Maximum station  count. */
-constexpr size_t kSTATION = 100;
-/* Day count of each month. */
+/* Prefix sum of day count of each month. */
 constexpr int day_map[] = {
     0,31,59,90,120,151,181,212,243,273,304,334
 };
+/* Maximum station  count. */
+constexpr int kSTATION = 100;
+/* Maximum duration from 06-01 to 08-31 */
+constexpr int DURATION = day_map[8] - day_map[5];
 
 
 using username_t  = string <24>; /* Username as the only marker ||  3Byte unused. */
@@ -35,7 +38,7 @@ using prices_t      = int;   /* Range: 0 ~ 1e5      */
 using calendar      = int;   /* Range: 0 ~ 60 * 24 * 365 */
 using travel_t      = short; /* Range: 0 ~ 1e4      */
 using stopov_t      = short; /* Range: 0 ~ 1e4      */
-using trainType_t   = char;           /* Range: 'A' ~ 'Z'    */
+using trainType_t   = char;  /* Range: 'A' ~ 'Z'    */
 
 
 /* Listing all commands. */
@@ -59,6 +62,7 @@ enum class command_t : unsigned char {
 };
 
 }
+
 
 /* Function and main classes part. */
 namespace dark {
@@ -87,6 +91,18 @@ void write_input() noexcept {
 }
 
 
+/* Write a line of privilege. */
+void writeline_privilege(const privilege_t &__p) noexcept {
+    if(__p != 10) { putchar(__p ^ '0'); }
+    else {  putchar('1'); putchar('0'); }
+    putchar('\n');
+}
+
+
+/* Write a bool integer as 0/1. */
+void writeline(bool x) noexcept { puts(x ? "0" : "-1" ); }
+
+
 /* Convert a c-string to privilege.  */
 privilege_t to_privilege(const char *__s) 
 noexcept { return !__s[1] ? *__s ^ '0' : 10; }
@@ -106,33 +122,6 @@ T to_unsigned_integer(const char *__s) noexcept {
 trainType_t to_type(const char *__s) noexcept { return *__s; }
 
 
-/* Write a bool integer as 0/1. */
-void writeline(bool x) noexcept { puts(x ? "0" : "-1" ); }
-
-
-/* Convert a c-string into a string array. */
-template <class string>
-void get_strings(string *names,const char *__n) noexcept {
-    do { /* Loop. */
-        size_t i = 0;
-        while(*__n && *__n != '|') (*names)[i++] = *(__n++); 
-        ++names;
-    } while(*(__n++));
-}
-
-
-/* Convert a c-string into an integer array. */
-template <class integer>
-void get_integers(integer *price,const char *__p) noexcept {
-    static_assert(std::is_integral_v <integer>,"Must be integers!");
-    do { /* Loop. */
-        while(*__p && *__p != '|') {
-            *price = *price * 10 + (*(__p++) ^ '0'); 
-        } ++price;
-    } while(*(__p++));
-}
-
-
 /* Convert a c-string time into calendar recording date. */
 calendar date_to_calendar(const char *__t) noexcept {
     return (calendar)( 
@@ -143,6 +132,7 @@ calendar date_to_calendar(const char *__t) noexcept {
     );
 }
 
+
 /* Convert a c-string time into calendar recording minute. */
 calendar time_to_calendar(const char *__t) noexcept {
     return (calendar)(
@@ -151,22 +141,51 @@ calendar time_to_calendar(const char *__t) noexcept {
     );
 }
 
+
 /* Convert a calendar into day count.  */
-unsigned to_day(calendar __c) noexcept { return __c / 1440; }
+int to_day(calendar __c) noexcept { return __c / 1440; }
+
 
 /* Convert a c-string time into calendar recording date relative to 06-01.*/
 int to_relative_day(calendar __c) 
 noexcept { return to_day(__c) - (day_map[5] + 1); }
 
+
 /* Get date for begin and end range. */
-void get_dates(calendar &__beg,calendar &__end,const char *__t) 
+void get_dates(calendar &__beg,calendar &__end,const char *__t,const char *__x) 
 noexcept {
     __beg = date_to_calendar(__t + 0);
     __end = date_to_calendar(__t + 6);
+    calendar time = time_to_calendar(__x);
+    __beg += time;
+    __end += time;
+}
+
+/* Convert a c-string into a string array. */
+template <class string>
+string *get_strings(string *names,const char *__n) noexcept {
+    do { /* Loop. */
+        size_t i = 0;
+        while(*__n && *__n != '|') (*names)[i++] = *(__n++); 
+        ++names;
+    } while(*(__n++));
+    return names;
+}
+
+
+/* Convert a c-string into an integer array. */
+template <class integer>
+integer *get_integers(integer *price,const char *__p) noexcept {
+    static_assert(std::is_integral_v <integer>,"Must be integers!");
+    do { /* Loop. */
+        while(*__p && *__p != '|') {
+            (*price) = (*price )* 10 + (*(__p++) ^ '0'); 
+        } ++price;
+    } while(*(__p++));
+    return price;
 }
 
 }
-
 
 
 #endif

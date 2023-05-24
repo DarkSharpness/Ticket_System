@@ -87,15 +87,15 @@ class ticket_system : command_parser,train_system,user_system  {
     
     ticket_system() :
         command_parser(),
-        train_system("bin/train_map","bin/train_dat","bin/seats_dat"),
-        user_system("bin/user") {}
+        train_system("bin/set","bin/train","bin/seats","bin/station"),
+         user_system("bin/user") {}
 
     /**
      * @brief Switch part of the function.
      * 
      * @return False only if exit case.
      */
-    bool work() noexcept {
+    int work() noexcept {
         switch(command_parser::parse()) {
             case command_t::A_US: add_user();       break;
             case command_t::L_IN: login();          break;
@@ -111,10 +111,10 @@ class ticket_system : command_parser,train_system,user_system  {
             case command_t::B_TK: buy_ticket();     break;
             case command_t::Q_OR: query_order();    break;
             case command_t::R_TK: refund_ticket();  break;
-            case command_t::CLR_: clean();          break;
-            case command_t::EXIT: quit(); return false;
+            case command_t::CLR_: clean(); return 2;
+            case command_t::EXIT: quit();  return 1;
             default: ; /* This should never happen! */
-        } return true;
+        } return 0;
     }
 };
 
