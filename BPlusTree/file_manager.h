@@ -184,10 +184,21 @@ class file_manager : public rubbish_bin {
         dat_file.read((char *)&obj,page_size);
     }
 
+    void read_object(T &obj,int index,int offset,int length) {
+        dat_file.seekg(index * page_size + offset);
+        dat_file.read(((char *)&obj) + offset,length);
+    }
+
     /* Write object to disk at given index. */
     void write_object(const T &obj,int index) {
         dat_file.seekp(index * page_size);
         dat_file.write((const char *)&obj,page_size);
+    }
+
+    /* Read object from disk at given index. */
+    void write_object(const T &obj,int index,int offset,int length) {
+        dat_file.seekp(index * page_size + offset);
+        dat_file.write(((const char *)&obj) + offset,length);
     }
 
     /* Whether node count is zero. */
@@ -216,7 +227,7 @@ class external_hash_set : public linked_hash_set <T,kTABLESIZE> {
 
             /* Construct the array for read-in. */
             dark::trivial_array <T> t; t.resize(count);
-            file.read((char *)&t,count * sizeof(T));
+            file.read((char *)t.data(),count * sizeof(T));
 
             /* Fill the set with data. */
             for(auto &&iter : t) this->insert(iter);

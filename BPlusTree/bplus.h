@@ -18,7 +18,7 @@ struct value_pair {
 
 /* Tuple of value and index and count. */
 template <class key_t,class T>
-struct tuple {
+struct value_tuple {
     using value_t = value_pair <key_t,T>;
     header head;  /* A small header. */
     value_t v; /* Smallest pair of target node. */
@@ -62,7 +62,7 @@ template <
 class tree {
   private: /* Struct and using part. */
 
-    using tuple_t = tuple <key_t,T>;
+    using tuple_t = value_tuple <key_t,T>;
 
     /* Maximum node number. */
     static constexpr int MAXN_SIZE = 1919810;
@@ -714,7 +714,7 @@ using bpt = b_plus::tree <
       T,
     TABLE_SIZE,
     CACHE_SIZE,
-    (page_num * 4096 - sizeof(header)) / sizeof(b_plus::tuple <key_t,T>)
+    (page_num * 4096 - sizeof(header)) / sizeof(b_plus::value_tuple <key_t,T>)
 >;
 
 
