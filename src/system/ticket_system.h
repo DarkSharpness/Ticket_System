@@ -68,7 +68,11 @@ class ticket_system : command_parser,train_system,user_system  {
         );
     }
 
-    void query_train() {}
+    void query_train() {
+        dark::writeline(
+            train_system::query_train(argument('i'),argument('d'))
+        );
+    }
 
     void query_ticket() {}
 
@@ -87,8 +91,8 @@ class ticket_system : command_parser,train_system,user_system  {
     
     ticket_system() :
         command_parser(),
-        train_system("bin/set","bin/train","bin/seats","bin/station"),
-         user_system("bin/user") {}
+        train_system("bin/"),
+         user_system("bin/") {}
 
     /**
      * @brief Switch part of the function.

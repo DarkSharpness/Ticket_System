@@ -190,9 +190,6 @@ class file_manager : public rubbish_bin {
         dat_file.write((const char *)&obj,page_size);
     }
 
-    /* Clear the data within. */
-    void clear() { this->reset(); }
-
     /* Whether node count is zero. */
     bool empty() const noexcept { return !size(); }
 };
@@ -205,12 +202,9 @@ template <
 class external_hash_set : public linked_hash_set <T,kTABLESIZE> {
   private:
     std::fstream file;
-    /* Do nothing. */
-    struct empty_function { void operator ()(T &__t) { return; } };
   public:
 
-    template <class function = empty_function>
-    external_hash_set(std::string __path,function &&modify = empty_function()) {
+    external_hash_set(std::string __path) {
         __path += ".dat";
         file.open(__path,std::ios::in | std::ios::out | std::ios::binary);
         if(!file.good()) {
@@ -225,10 +219,7 @@ class external_hash_set : public linked_hash_set <T,kTABLESIZE> {
             file.read((char *)&t,count * sizeof(T));
 
             /* Fill the set with data. */
-            for(auto &&iter : t) {
-                modify(iter);
-                this->insert(iter);
-            }
+            for(auto &&iter : t) this->insert(iter);
         }
     }
 

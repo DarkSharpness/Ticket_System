@@ -12,13 +12,12 @@ class user_system {
     set_t user_set; /* Set of user data. */
     account temp;   /* Temp account info. */
 
-    struct modify_function 
-    { void operator()(account &__a) const noexcept { __a.login() = false; } };
 
   public:
 
-    user_system(std::string __path)
-    : user_set(std::move(__path),modify_function()) {}
+    /* Read in users. */
+    user_system(std::string __path) : user_set(__path + "user")
+    { for(auto &&iter : user_set) iter.login() = false; }
 
     ~user_system() = default;
 

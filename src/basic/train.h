@@ -6,6 +6,35 @@
 
 namespace dark {
 
+/* Use 19 bit to store index and 13 bit to store time.   */
+struct compressor {
+    int data; /* Real data. */
+
+    compressor() = default;
+    compressor(int x,int y = 0) noexcept : data((x << 13) | y) {}
+
+    static constexpr int MAX_TIME = (1 << 13) - 1;
+
+    /* Index of train data. */
+    int index() const noexcept { return data >> 13; }
+
+    /* A time. (Smaller than max_range.)  */
+    int time () const noexcept { return data & MAX_TIME; }
+
+    /* Set the data for index and time. */
+    void set_data(int __i,int __r) noexcept { data = __i << 13 | __r; }
+
+    /* Set the index and clear time. */
+    void set_index(int __i) noexcept { data = __i << 13; }
+
+    /* Update index to a new value. */
+    void update_index(int __i) noexcept { data = (__i << 13) | time();}
+};
+
+static_assert(sizeof(compressor) == 4);
+
+
+
 /* Train info holder. */
 struct train {
     realtrainID_t tid; /* TrainID string. */
@@ -16,11 +45,11 @@ struct train {
     calendar sale_beg; /* Begin time on sale (Containing hour-minute) */
     calendar sale_end; /*  End  time on sale (Containing hour-minute) */
 
-    stationName_t    names[kSTATION];
-    prices_t         price[kSTATION];
+    stationName_t    names[kSTATION]; /* Name of given station. */
+    prices_t         price[kSTATION]; /*  Prefix sum of price. */
 
-    travel_t travel_time[kSTATION];
-    stopov_t stopov_time[kSTATION];
+    travel_t arrival_time[kSTATION]; /* 1 ~ station_num. */
+    stopov_t leaving_time[kSTATION]; /* 1 ~ station_num - 1. */
 
     char &type() noexcept { return tid[sizeof(tid) - 1]; }
 
@@ -37,11 +66,19 @@ struct train {
 
         get_dates(sale_beg,sale_end,__d,__x);
         get_strings (names,__s);
-        get_integers(price,__p);
-        get_integers(travel_time,__t);
+        
+        get_integers(price + 1,__p);
+        get_integers(arrival_time + 1,__t);
+        get_integers(leaving_time + 1,__o);
+        price[0] = arrival_time[0] = leaving_time[0] = 0;
 
-        /* Ensure stopov_time[stat_num - 2] = 0. */
-        stat_num ? *get_integers(stopov_time,__o) = 0 : stopov_time[0] = 0;
+        int i = 0;
+        while(++i != stat_num) {
+            price       [i] += price       [i - 1];
+            arrival_time[i] += leaving_time[i - 1];
+            leaving_time[i] += arrival_time[  i  ];
+        } --i; /* Now i = stat_num - 1 */
+        leaving_time[i] = arrival_time[i];
     }
 };
 static_assert(sizeof(train) <= 4096,"fault");
@@ -57,58 +94,93 @@ static_assert(sizeof(seats) <= 9 * 4096,"fault");
 /* Train state holder. */
 struct train_state {
     size_t __hash; /* Inner hash code. */
-    int index_data; /* Index of train data.    */
-    int index_seat; /* Index of train seat. */
 
-    bool is_released() const noexcept { return index_seat != -1; }
+    compressor index_data;
+    compressor index_seat;
+
+    /* Return the index of train data. */
+    int train_index() const noexcept { return index_data.index(); }
+    /* Return the index of seats data. */
+    int seats_index() const noexcept { return index_seat.index(); }
+
+    /* Return the relative day of beginning. */
+    int beg() const noexcept { return index_data.time(); }
+
+    /* Return the relative day of ending. */
+    int end() const noexcept { return index_seat.time(); }
+
+    /* Set train data. */
+    void set_train(int x,int y) noexcept { return index_data.set_data(x,y); }
+
+    /* Set seats data. */
+    void set_seats(int x,int y) noexcept { return index_seat.set_data(x,y); }
+
+    /* Update seats index. */
+    void update_seats(int x)  noexcept { return index_seat.update_index(x); }
+
+    /* As it means...... */
+    bool is_released() const noexcept { return index_seat.data < 0; }
 };
 
 /* Preview data of a train. */
 struct train_view {
-    int train_index;
+    compressor data;  /* Index of train data.   */
+    prices_t  price;  /* Prefix cost.           */
+    travel_t arrival; /* Arrival time.          */
+    travel_t leaving; /* Leaving time.          */
+    travel_t  start;  /* Start time in one day. */
+    char      __beg;  /* Relative begin date.   */ 
+    char      __end;  /* Relative  end  date.   */
 
-    number_t time; /* Prefix time. (No greater than 72  * 60 ) */
-    prices_t cost; /* Prefix cost. (No greater than 1e5 * 100) */
+    /* Index of the train data. */
+    int index() const noexcept { return data.index(); }
 
-    static_assert(sizeof(size_t) == 8,"Fail");
-    static constexpr size_t unit[3] = {1,1e6,1e12};
- 
-    /* Real data. Stopov + begin time + end time.*/
-    size_t time_data;
+    /* Number of the station. */
+    int number() const noexcept { return data.time(); }
 
-    /* Stop over time. */
-    number_t stopov() const noexcept { return time_data % unit[1]; }
-    /* Begin time. */
-    calendar beg() const noexcept { return (time_data / unit[1]) % unit[1]; }
-    /* End time. */
-    calendar end() const noexcept { return time_data / unit[2];  }
+    /* Set the index of the train data and reset the  */
+    void set_index(int __i) noexcept { data.set_index(__i); }
 
-    /* Set its time range and clear stop ov. */
-    void set_range(calendar beg,calendar end) noexcept
-    { time_data = beg * unit[1] + end * unit[2]; }
+    /* Add the inner number of station. */
+    void add_number() noexcept { ++data.data; }
 
-    /* Reset its stopover time. */
-    void set_stop_ov(number_t stop_ov) noexcept
-    { time_data += stop_ov - stopov(); }
-
-    /* Add its time. */
-    void add_time(number_t __t) { time += __t; } 
-
-    /* Add its cost. */
-    void add_cost(prices_t __c) { cost += __c; }
-
-    /* Copy part of the data. */
-    void copy(size_t __h,number_t __t,prices_t __c)
-    noexcept { __hash = __h; time = __t; cost = __c; }
+    /* Set the prefix cost. */
+    void set_price(prices_t __p) noexcept { price = __p; }
 
 };
 
+static_assert(sizeof(train_view) == 16,"Die");
+
+using ticket = compressor;
+
+}
+
+namespace dark {
 
 template <>
 struct Compare <::dark::train_view> {
     int operator()(const ::dark::train_view &lhs,const ::dark::train_view &rhs) 
-    const noexcept { return lhs.__hash < rhs.__hash ? -1 : rhs.__hash < lhs.__hash; }
+    const noexcept {
+        return lhs.index() < rhs.index() ? -1 : rhs.index() < lhs.index();
+    }
 };
+
+/* Write the info of a train and its seat. */
+void writeline(std::pair <train *,int *> __p) {
+    train *__t = __p.first;
+    if(!__t) return (void)puts("-1");
+    dark::writeline(__t->tid,__t->type());
+
+    number_t n = __t->stat_num;
+
+    int time = 0;
+    int cost = 0;
+
+    dark::writeline(__t->names[0],"xx-xx xx:xx","->");
+
+};
+
+
 
 }
 

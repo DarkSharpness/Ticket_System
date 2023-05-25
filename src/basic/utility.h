@@ -23,7 +23,6 @@ constexpr int kSTATION = 100;
 /* Maximum duration from 06-01 to 08-31 */
 constexpr int DURATION = day_map[8] - day_map[5];
 
-
 using username_t  = string <24>; /* Username as the only marker ||  3Byte unused. */
 using password_t  = string <32>; /* Password of an account      ||  1Byte unused. */
 using realname_t  = string <16>; /* Real name of the user       ||  0Byte unused. */
@@ -64,11 +63,10 @@ enum class command_t : unsigned char {
 }
 
 
-/* Function and main classes part. */
+/* Inout function. */
 namespace dark {
 
 inline bool is_blank(char ch) noexcept { return ch == ' ' || ch == '\n' || ch == '\0'; }
-
 
 /* Read a visible string (supporting UTF-8) and return its tail. */
 char *read_string(char *str) noexcept {
@@ -77,11 +75,9 @@ char *read_string(char *str) noexcept {
     return str;
 }
 
-
 /* Read a line of command. */
 void read_line(char *str) noexcept 
 { do { *str = getchar(); } while(*(str++) != '\n'); }
-
 
 /* Write input string out directly. */
 void write_input() noexcept { 
@@ -90,7 +86,6 @@ void write_input() noexcept {
     do { putchar(ch); } while(!is_blank(ch = getchar()));
 }
 
-
 /* Write a line of privilege. */
 void writeline_privilege(const privilege_t &__p) noexcept {
     if(__p != 10) { putchar(__p ^ '0'); }
@@ -98,15 +93,17 @@ void writeline_privilege(const privilege_t &__p) noexcept {
     putchar('\n');
 }
 
-
 /* Write a bool integer as 0/1. */
 void writeline(bool x) noexcept { puts(x ? "0" : "-1" ); }
 
+}
+
+/* Convert function part. */
+namespace dark {
 
 /* Convert a c-string to privilege.  */
 privilege_t to_privilege(const char *__s) 
 noexcept { return !__s[1] ? *__s ^ '0' : 10; }
-
 
 /* Convert a c-string to unsigned_integer..  */
 template <class T>
@@ -117,21 +114,24 @@ T to_unsigned_integer(const char *__s) noexcept {
     return ans;
 }
 
-
 /* Convert a c-string to trainType.  */
 trainType_t to_type(const char *__s) noexcept { return *__s; }
 
-
-/* Convert a c-string time into calendar recording date. */
-calendar date_to_calendar(const char *__t) noexcept {
-    return (calendar)( 
-        ( 
+/* Convert a c-string date into day count. */
+int date_to_day(const char *__t) noexcept {
+    return ( 
             day_map[(__t[0] ^ '0') * 10 + (__t[1] ^ '0') * 1 - 1]
           + (__t[3] ^ '0') * 10  + (__t[4] ^ '0') * 1 
-        ) * 1440
-    );
+        );
 }
 
+/* Convert a c-string date into calendar recording date. */
+calendar date_to_calendar(const char *__t) 
+noexcept { return date_to_day(__t) * 1440; }
+
+/* Convert a c-string date count relative to 06-01.*/
+int date_to_relative_day(const char *__t) 
+noexcept { return date_to_day(__t) - (day_map[5] + 1); }
 
 /* Convert a c-string time into calendar recording minute. */
 calendar time_to_calendar(const char *__t) noexcept {
@@ -141,15 +141,19 @@ calendar time_to_calendar(const char *__t) noexcept {
     );
 }
 
-
 /* Convert a calendar into day count.  */
-int to_day(calendar __c) noexcept { return __c / 1440; }
+int to_day(calendar __c) 
+noexcept { return __c / 1440; }
+
+/* Convert a calendar into to day count relative to 06-01.*/
+int to_relative_day(calendar __c) noexcept
+{ return to_day(__c) - (day_map[5] + 1); }
 
 
-/* Convert a c-string time into calendar recording date relative to 06-01.*/
-int to_relative_day(calendar __c) 
-noexcept { return to_day(__c) - (day_map[5] + 1); }
+int to_time(calendar __c)
+noexcept { return __c % 1440; }
 
+/* Special convert functions. */
 
 /* Get date for begin and end range. */
 void get_dates(calendar &__beg,calendar &__end,const char *__t,const char *__x) 
@@ -163,26 +167,23 @@ noexcept {
 
 /* Convert a c-string into a string array. */
 template <class string>
-string *get_strings(string *names,const char *__n) noexcept {
+void get_strings(string *names,const char *__n) noexcept {
     do { /* Loop. */
         size_t i = 0;
         while(*__n && *__n != '|') (*names)[i++] = *(__n++); 
         ++names;
     } while(*(__n++));
-    return names;
 }
-
 
 /* Convert a c-string into an integer array. */
 template <class integer>
-integer *get_integers(integer *price,const char *__p) noexcept {
+void get_integers(integer *price,const char *__p) noexcept {
     static_assert(std::is_integral_v <integer>,"Must be integers!");
     do { /* Loop. */
         while(*__p && *__p != '|') {
             (*price) = (*price )* 10 + (*(__p++) ^ '0'); 
         } ++price;
     } while(*(__p++));
-    return price;
 }
 
 }
