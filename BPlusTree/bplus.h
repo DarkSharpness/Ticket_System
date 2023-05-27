@@ -646,6 +646,26 @@ class tree {
         if(!empty()) erase(root(),key,val);
     }
 
+    /* Find the exact key/value pair reference. */
+    T *find_pointer(const key_t &key,const T &val) {
+        if(empty()) return nullptr;
+        header head = root();
+        /* Find the real inner node. */
+        while(head.is_inner()) {
+            visitor pointer = get_pointer(head);
+            int x = binary_search(pointer->data,key,val,0,head.count);
+            if(x == 0) return nullptr; /* Smaller than the smallest node. */
+            else if(x > 0) --x;      /* Move the position */
+            else x = ~x;
+            head = pointer->head(x);
+        }
+
+        /* The real outer node. */
+        visitor pointer = get_pointer(head);
+        int x = ~binary_search(pointer->data,key,val,0,head.count);
+        if(x < 0) return nullptr; /* Don't find exactly the value. */
+        return &pointer->data[x].v.val;
+    }
 
     /* Find all value-type binded to key. */
     void find(const key_t &key,return_list &v) {
@@ -709,6 +729,7 @@ class tree {
         }
     }
 
+
     /* Find all value-type binded to key if satisfying compare function. */
     template <class __C>
     void modify_if(const key_t &key,__C &&func) {
@@ -757,10 +778,6 @@ class tree {
             } return *this;
         }
 
-        void operator next() {
-            
-        }
-
         T &operator * (void) const { return  pointer->data[__n].v.val; }
         T *operator ->(void) const { return &pointer->data[__n].v.val; }
 
@@ -790,24 +807,6 @@ class tree {
         if(x == head.count) { --temp.__n; ++temp; }
         return temp;
     }
-
-    // /* Find reference to data , only when there exists only one value tied to key. */
-    // T *get_reference(const key_t &key) {
-    //     if(empty()) return nullptr;
-    //     header head = root();
-    //     /* Find the real inner node. */
-    //     while(head.is_inner()) {
-    //         visitor pointer = get_pointer(head);
-    //         int x = upper_bound(pointer->data,key,0,head.count);
-    //         if(x == 0) return nullptr; /* Not found case. */
-    //         head = pointer->head(x - 1);
-    //     }
-    //     /* The real outer node. */
-    //     visitor pointer = get_pointer(head);
-    //     int x = lower_bound(pointer->data,key,0,head.count);
-    //     if(k_comp(key,pointer->data[x].v.key)) return nullptr;
-    //     else return &pointer->data[x].v.val;
-    // }
 
 };
 

@@ -24,9 +24,8 @@ class train_system {
 
     set1_t   train_set; /* Set containing train_state. */
     map1_t station_map; /* Map from station to the passing-by trains.  */
-    map2_t   order_map; /* Map from ticket type to index of order. */
+    map2_t   order_map; /* Map of pending queue,from train to order_index. */
     array_t seatID_map; /* Map from seat_index to trainID and train_index. */
-
 
     data_file_t   data_file; /* File manager of train data. */
     seat_file_t   seat_file; /* File manager of seats info. */
@@ -34,6 +33,9 @@ class train_system {
 
     train cache_train;       /* Cached. */
     seats cache_seats;       /* Cached. */
+
+    order_t     order; /* The order object within. */
+    transfer_view ans; /* Answer for query_transfer. */
 
     int allocate_train() { return data_file.allocate(); }
     int allocate_seats() { return seat_file.allocate(); }
@@ -88,20 +90,47 @@ class train_system {
     bool relative_date_check(int day)
     { return day >= 0 && day <= DURATION + 3; }
 
-    /* Write out the seats and add a delta to the range. */
-    void update_seats(int index,int dep,int i,int j,int delta) {
+    /* Add a delta to the range. */
+    void update_seats(int i,int j,int delta) {
         while(i != j) cache_seats.count[0][i++] += delta;
-        write_seats(index,dep,dep);
     }
 
+    /* Read order info from disk. */
+    void read_order(int index) { order_file.read_object(order,index); }
+    /* Write order info into disk. */
+    void write_order(int index) { order_file.write_object(order,index); }
   public:
 
     /* Create an order and return its index.  */
-    int create_order(order_t &order) {
+    int create_order() {
         int index = order_file.allocate();
         order_file.write_object(order,index);
-        order_map.insert({order.index,(short)order.__dep},index);
+        if(order.is_pending())
+            order_map.insert({order.index,(short)order.__dep},index);
         return index;
+    }
+
+    /* Return the order stored at index. */
+    void print_order(int index) {
+        read_order(index);
+        dark::writeline(
+            (order_wrapper)order.state,
+            seatID_map[order.index],
+            order.fr,
+            order.leaving_time(),
+            "->",
+            order.arrival_time(),
+            order.price,
+            order.count
+        );
+    }
+
+    /* Query the minimum seat between station i and j. */
+    int query_seat(int i,int j) {
+        int ans = INT_MAX;
+        while(i != j)
+            ans = std::min(ans,cache_seats.count[0][i++]);
+        return ans;
     }
 
     /* Query the minimum seat between station i and j on day x. */
@@ -279,15 +308,15 @@ class train_system {
 
                 /* Relative day of begin station. */
                 int dep = day - view_s.travel_day();
-                int count = /* Count of the seat */
-                    query_seat(view_s.index,dep,view_s.start,view_t.start);
+
+                int remainder = query_seat(view_s.index,dep,view_s.start,view_t.start);
 
                 /* The order view to keep. */
                 order_view view = {
                     view_s.index,
                     (short)(view_t.arrival - view_s.leaving),
                     view_t.price - view_s.price,
-                    count,
+                    remainder,
                     merge_relative_day_time(dep,view_s.leaving + view_s._time),
                 };
 
@@ -305,7 +334,6 @@ class train_system {
     transfer_view *query_transfer(const char *__s,const char *__t,
                         const char *__d,const bool type) {
         static set2_t set; /* Data storer. Initial as empty. */
-        static transfer_view ans; /* Answer view. */
 
         /* Relative day of current station. */
         const int day = date_to_relative_day(__d);
@@ -421,10 +449,9 @@ class train_system {
         return tag ? &ans : nullptr;
     }
 
-    /* Working */
+    /* Complete */
     order_t *buy_ticket(const char *__i,const char *__d,const char *__n,
                         const char *__f,const char *__t,const bool type) {
-        static order_t order; /* Cached. */
 
         const auto *__p = train_set.find(string_hash(__i));
         const int count = to_unsigned_integer <number_t> (__n);
@@ -448,9 +475,11 @@ class train_system {
         /* Remaining seats between station i and j. */
         int remainder = query_seat(__p->seats_index,dep,i,j);
         if(remainder < count && !type) return nullptr;
-        if(remainder >= count) update_seats(__p->seats_index,dep,i,j,-count);
-
-        order.fr       = __f; 
+        if(remainder >= count) {
+            update_seats(i,j,-count);
+            write_seats (__p->seats_index,dep,dep);
+        }
+        order.fr       = __f;
         order.to       = __t;
         order.start()  = i;
         order.final()  = j;
@@ -465,6 +494,38 @@ class train_system {
         return &order;
     }
 
+    /* Complete. */
+    void refund_ticket(int index) {
+        read_order(index);
+        read_seats(order.index,order.__dep,order.__dep);
+        if(order.is_success())
+            update_seats(order.start(),order.final(),order.count);
+        order.set_refunded();
+        write_order(index);
+        order_map.erase({order.index,(short)order.__dep},index);
+
+        typename map2_t::return_list vec;
+        order_map.find ({order.index,(short)order.__dep},vec);
+
+        /* TODO: Square optimization */
+        // int data[2][10];
+        // memset(data[0],0,sizeof(data[0]));
+        // memset(data[0],1,sizeof(data[1]));
+        // for(int i = 0 ; i < 100 ; ++i)
+        //     data[1][i / 10] = min(data[1][i / 10],seats.count[0][i])
+
+        for(int iter : vec) {
+            read_order(iter);
+            int remainder = query_seat(order.start(),order.final());
+            if(remainder >= order.count) {
+                order.set_success();
+                write_order(index);
+                order_map.erase({order.index,(short)order.__dep},iter);
+                update_seats(order.start(),order.final(),-order.count);
+            }
+        }
+        write_seats(order.index,order.__dep,order.__dep);
+    }
 
 };
 

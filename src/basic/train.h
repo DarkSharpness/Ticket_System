@@ -189,7 +189,7 @@ struct transfer_view {
 static_assert(sizeof(transfer_view) == 64);
 
 struct train_unit {
-    short index; /*   Train index.    */
+    short index; /* Index of seats.   */
     short __dep; /* The depature day. */
 };
 static_assert(sizeof(train_unit) == 4);
@@ -200,12 +200,22 @@ static_assert(sizeof(train_unit) == 4);
 namespace dark {
 
 template <>
-struct Compare <::dark::train_view> {
-    int operator()(const ::dark::train_view &lhs,const ::dark::train_view &rhs) 
+struct Compare <train_view> {
+    int operator()(const train_view &lhs,const train_view &rhs) 
     const noexcept {
         return lhs.index < rhs.index ? -1 : rhs.index < lhs.index;
     }
 };
+
+template <>
+struct Compare <train_unit> {
+    int operator()(const train_unit &lhs,const train_unit &rhs) 
+    const noexcept {
+        return lhs.index == rhs.index ?
+               lhs.__dep - rhs.__dep : lhs.index - rhs.index;
+    }
+};
+
 
 
 /* Write the info of a train and its seat. */
@@ -274,7 +284,7 @@ struct hash <::dark::station_views> {
 template <>
 struct equal_to <::dark::train_state> {
     size_t operator()(const ::dark::train_state &lhs,
-                      const ::dark::train_state &rhs) 
+                      const ::dark::train_state &rhs)
     const noexcept { return lhs.__hash == rhs.__hash; }
 };
 

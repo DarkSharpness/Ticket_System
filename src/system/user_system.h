@@ -8,7 +8,7 @@ namespace dark {
 class user_system {
   private:
     using set_t = external_hash_set <account,8093>;
-    using map_t = bpt <size_t,std::pair<int,int>,1000,1,1>;
+    using map_t = bpt <size_t,order_info,1000,128,1>;
 
     set_t  user_set; /* Set of user data. */
     map_t order_map; /* Map from user to his orders. */
@@ -19,7 +19,7 @@ class user_system {
     /* Read in users. */
     user_system(std::string __path) :
         user_set (__path + "user"),
-        order_map(__path + "omap2")
+        order_map(__path + "omap")
     { for(auto &&iter : user_set) iter.login() = false; }
 
     ~user_system() = default;
@@ -124,11 +124,37 @@ class user_system {
         return __a && __a->login() == true ? __a : nullptr;
     }
 
-    /* Add a order for an user. */
+    /* Add a order for an given user. */
     void add_order(account *__u,int index) {
-        order_map.insert(string_hash(__u->name),{++(__u->count()),index});
+        order_map.insert(string_hash(__u->name),{++(__u->count()),0,index});
     }
 
+    typename map_t::return_list *query_order(const char *__u) {
+        size_t hid_u = string_hash(__u);
+        auto *__a = user_set.find(hid_u);
+        auto *vec = new typename map_t::return_list;
+        if(!__a || __a->login() == false) return nullptr;
+        order_map.find(hid_u,*vec);
+        return vec;
+    }
+
+    /* Refund a ticket */
+    int refund_ticket(const char *__u,const char *__n) {
+        size_t hid_u = string_hash(__u);
+        auto *__a = user_set.find(hid_u);
+        if(!__a || __a->login() == false) return -1;
+
+        int count  = __n ? to_unsigned_integer <number_t> (__n) : 1;
+        if(!count || count > (int)__a->count()) return false;
+
+        auto *__o  = order_map.find_pointer(hid_u,{__a->count() + 1 - count});
+        if(__o->avail) return -1;
+        __o->avail = 1;
+
+        return __o->index;
+    }
+
+    
 
 };
 

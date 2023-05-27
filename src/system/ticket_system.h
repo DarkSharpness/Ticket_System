@@ -75,15 +75,16 @@ class ticket_system : command_parser,train_system,user_system  {
     }
 
     void query_ticket() {
+        auto *___ = argument('p');
+        bool type = ___ ? ___[0] == 't' : true;
+
         dark::trivial_array <order_view> __v = 
-            train_system::query_ticket(argument('s'),
-                                       argument('t'),
-                                       argument('d'));
+            train_system::query_ticket(argument('s'),argument('t'),argument('d'));
         if(__v.empty()) return dark::writeline('0');
 
         dark::writeline(__v.size());
         auto *__p = train_system::trainID();
-        if(argument('p')[0] == 't') {
+        if(type) {
             sort(__v.begin(),__v.end(),
                 [=](const order_view &x,const order_view &y) ->bool {
                     return x.interval != y.interval ?
@@ -100,6 +101,7 @@ class ticket_system : command_parser,train_system,user_system  {
                 }
             );
         }
+
         const char *__s = argument('s');
         const char *__t = argument('t');
         for(auto view : __v) {
@@ -117,17 +119,18 @@ class ticket_system : command_parser,train_system,user_system  {
     }
 
     void query_transfer() {
+        auto *___ = argument('p');
+        bool type = ___ ? ___[0] == 't' : true;
         transfer_view *view = train_system::query_transfer(
             argument('s'),
             argument('t'),
             argument('d'),
-            argument('p')[0] == 't'
-        );
-        if(!view) return writeline('0');
+            type
+        ); if(!view) return writeline('0');
 
         int seat_num[2];
         for(int i = 0 ; i != 2; ++i)
-            seat_num[i] = /* Compiler should unfold it......maybe...... */
+            seat_num[i] = /* A good compiler should unfold it......maybe...... */
                 train_system::query_seat(
                     view->__[i].index,
                     view->__dep[i],
@@ -159,22 +162,36 @@ class ticket_system : command_parser,train_system,user_system  {
     }
 
     void buy_ticket() {
+        auto *___ = argument('q');
+        bool type = ___ ? ___[0] == 't' : false;
+
         auto *__u = user_system::is_login(argument('u'));
+        if(!__u) return (void)puts("-1");
+
         auto *__o = train_system::buy_ticket(argument('i'),argument('d'),
                                              argument('n'),argument('f'),
-                                             argument('t'),argument('q')[0] == 't');
+                                             argument('t'),type);
         if(!__o) return (void)puts("-1");
+
         if(!__o->state) dark::writeline("queue");
         else dark::writeline((long long)(__o->price) * __o->count);
-        user_system::add_order(__u,train_system::create_order(*__o));
+        user_system::add_order(__u,train_system::create_order());
     }
 
     void query_order() {
-
+        auto *vec = user_system::query_order(argument('u'));
+        if(!vec) return (void)puts("-1");
+        dark::writeline(vec->size());
+        for(auto iter = vec->rbegin() ; iter != vec->rend() ; ++iter)
+            train_system::print_order(iter->index);
+        delete vec;
     }
 
     void refund_ticket() {
-
+        auto result = user_system::refund_ticket(argument('u'),argument('n'));
+        dark::writeline(result == -1);
+        if(result == -1) return;
+        train_system::refund_ticket(result);
     }
 
     void clean() { /* This will never happen haha! */ }

@@ -12,7 +12,7 @@ struct account {
     password_t pswd; /* Password. */
     realname_t name; /* Realname. */
     mailaddr_t mail; /* MailAddr. */
-    
+
     account() = default;
 
     account(const char *__u,const char *__p,const char *__n,
@@ -47,7 +47,7 @@ struct account {
     bool login() const noexcept { return pswd[sizeof(pswd) - 1]; }
 };
 
-
+/* Total order info. */
 struct order_t {
     stationName_t fr;    /* Departure.      */
     stationName_t to;    /* Terminal.       */
@@ -79,9 +79,7 @@ struct order_t {
     calendar arrival_time() const noexcept { return leaving + interval; }
 
 };
-
 static_assert(sizeof(order_t) == 80);
-
 
 
 /* Preview data of order. */
@@ -100,6 +98,18 @@ struct order_view {
 };
 static_assert(sizeof(order_view) == 16);
 
+/* Info of order in the bpt. */
+struct order_info {
+    int count : 31; /* Number in current user's order. */
+    int avail :  1; /* Whether the ticket is refunded. */
+    int index : 32; /* Index of the order.  */
+};
+
+enum class order_wrapper : int {
+    REFUND  = -1,
+    PENDING =  0,
+    SUCCESS =  1,
+};
 
 }
 
@@ -121,10 +131,29 @@ void writeline(account *__a) noexcept {
     else     dark::writeline(*__a);
 }
 
+void write(order_wrapper __o) {
+    switch(__o) {
+        case order_wrapper::PENDING:
+            return dark::write("[pending]");
+        case order_wrapper::REFUND :
+            return dark::write("[refunded]");
+        case order_wrapper::SUCCESS:
+            return dark::write("[success]");
+        default: /* This can't happen */ ;
+    }
+}
+
+
 template <>
 struct Compare <account> {
-    int operator()(const account &,const account &) 
+    int operator ()(const account &,const account &) 
     const noexcept { return 0; }
+};
+
+template <>
+struct Compare <order_info> {
+    int operator ()(const order_info &lhs,const order_info &rhs) 
+    const noexcept { return lhs.count - rhs.count; }
 };
 
 }
