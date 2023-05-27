@@ -3,6 +3,7 @@
 
 #include "rubbish_bin.h"
 #include "Dark/LRU_map"
+#include "Dark/third_party/basic.h"
 
 namespace dark {
 
@@ -184,9 +185,10 @@ class file_manager : public rubbish_bin {
         dat_file.read((char *)&obj,page_size);
     }
 
-    void read_object(T &obj,int index,int offset,int length) {
-        dat_file.seekg(index * page_size + offset);
-        dat_file.read(((char *)&obj) + offset,length);
+    /* Read object from disk at given index. */
+    void read_object(T &obj,int index,int offset1,int offset2,int length) {
+        dat_file.seekg(index * page_size + offset1);
+        dat_file.read(((char *)&obj) + offset2,length);
     }
 
     /* Write object to disk at given index. */
@@ -195,10 +197,10 @@ class file_manager : public rubbish_bin {
         dat_file.write((const char *)&obj,page_size);
     }
 
-    /* Read object from disk at given index. */
-    void write_object(const T &obj,int index,int offset,int length) {
-        dat_file.seekp(index * page_size + offset);
-        dat_file.write(((const char *)&obj) + offset,length);
+    /* Write object to disk at given index. */
+    void write_object(const T &obj,int index,int offset1,int offset2,int length) {
+        dat_file.seekp(index * page_size + offset1);
+        dat_file.write(((const char *)&obj) + offset2,length);
     }
 
     /* Whether node count is zero. */
@@ -248,6 +250,37 @@ class external_hash_set : public linked_hash_set <T,kTABLESIZE> {
         /* Next write main data.  */
         file.write((const char *)t.data(),count * sizeof(T));
     }
+};
+
+template <class T>
+class external_array : public trivial_array <T> {
+  private:
+    std::fstream file;
+  public:
+
+    external_array() = default;
+
+    ~external_array() {
+        file.seekp(0);
+        file.write((char *)this->data(),this->size() * sizeof(T));
+    }
+
+    /* Initialize by a path and count. */
+    void init(std::string __path,int count) {
+        __path += ".dat";
+        file.open(__path,std::ios::in | std::ios::out | std::ios::binary);
+        if(!file.good()) {
+            file.close(); file.open(__path,std::ios::out | std::ios::binary);
+        } else { /* Read from memory. */
+            /* First read count. */
+            file.seekg(0);
+            /* Construct the array for read-in. */
+            this->reserve(count * 1.2); /* Magic number qwq. */
+            this->resize (count);
+            file.read((char *)this->data(),count * sizeof(T));
+        }
+    }
+
 };
 
 

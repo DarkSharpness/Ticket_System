@@ -2,37 +2,11 @@
 #define _TICKET_TRAIN_H_
 
 #include "utility.h"
+#include "Dark/trivial_array"
+#include <tuple>
 
 
 namespace dark {
-
-/* Use 19 bit to store index and 13 bit to store time.   */
-struct compressor {
-    int data; /* Real data. */
-
-    compressor() = default;
-    compressor(int x,int y = 0) noexcept : data((x << 13) | y) {}
-
-    static constexpr int MAX_TIME = (1 << 13) - 1;
-
-    /* Index of train data. */
-    int index() const noexcept { return data >> 13; }
-
-    /* A time. (Smaller than max_range.)  */
-    int time () const noexcept { return data & MAX_TIME; }
-
-    /* Set the data for index and time. */
-    void set_data(int __i,int __r) noexcept { data = __i << 13 | __r; }
-
-    /* Set the index and clear time. */
-    void set_index(int __i) noexcept { data = __i << 13; }
-
-    /* Update index to a new value. */
-    void update_index(int __i) noexcept { data = (__i << 13) | time();}
-};
-
-static_assert(sizeof(compressor) == 4);
-
 
 
 /* Train info holder. */
@@ -66,7 +40,7 @@ struct train {
 
         get_dates(sale_beg,sale_end,__d,__x);
         get_strings (names,__s);
-        
+
         get_integers(price + 1,__p);
         get_integers(arrival_time + 1,__t);
         get_integers(leaving_time + 1,__o);
@@ -80,13 +54,28 @@ struct train {
         } --i; /* Now i = stat_num - 1 */
         leaving_time[i] = arrival_time[i];
     }
+
+    /* Return the hour-minute starting time.*/
+    int time() const noexcept { return calendar_to_time(sale_beg); }
+
+    /* Find the station number. */
+    std::pair <int,int> find(const char *__s,const char *__t)
+    const noexcept {
+        int i = 0;
+        while(i < stat_num && strcmp(names[i].base(),__s)) ++i;
+        int j = i + 1;
+        while(j < stat_num && strcmp(names[j].base(),__t)) ++j;
+        return {i,j};
+    }
+
+
 };
 static_assert(sizeof(train) <= 4096,"fault");
 
 
 /* Seats info holder. */
 struct seats {
-    int count[DURATION][kSTATION]; /* Count on given date between given stations. */
+    seat_info_t count[DURATION]; /* Count on given date between given stations. */
 };
 static_assert(sizeof(seats) <= 9 * 4096,"fault");
 
@@ -95,63 +84,116 @@ static_assert(sizeof(seats) <= 9 * 4096,"fault");
 struct train_state {
     size_t __hash; /* Inner hash code. */
 
-    compressor index_data;
-    compressor index_seat;
+    short train_index; /* Train index. */
+    short seats_index; /* Seats index. */
 
-    /* Return the index of train data. */
-    int train_index() const noexcept { return index_data.index(); }
-    /* Return the index of seats data. */
-    int seats_index() const noexcept { return index_seat.index(); }
-
-    /* Return the relative day of beginning. */
-    int beg() const noexcept { return index_data.time(); }
-
-    /* Return the relative day of ending. */
-    int end() const noexcept { return index_seat.time(); }
-
-    /* Set train data. */
-    void set_train(int x,int y) noexcept { return index_data.set_data(x,y); }
-
-    /* Set seats data. */
-    void set_seats(int x,int y) noexcept { return index_seat.set_data(x,y); }
-
-    /* Update seats index. */
-    void update_seats(int x)  noexcept { return index_seat.update_index(x); }
+    struct {
+        unsigned __beg : 7;
+        unsigned __end : 7;
+        unsigned count : 18;
+    };
 
     /* As it means...... */
-    bool is_released() const noexcept { return index_seat.data < 0; }
+    bool is_released() const noexcept { return seats_index >= 0; }
 };
+static_assert(sizeof(train_state) == 16);
+
 
 /* Preview data of a train. */
 struct train_view {
-    compressor data;  /* Index of train data.   */
-    prices_t  price;  /* Prefix cost.           */
-    travel_t arrival; /* Arrival time.          */
-    travel_t leaving; /* Leaving time.          */
-    travel_t  start;  /* Start time in one day. */
-    char      __beg;  /* Relative begin date.   */ 
-    char      __end;  /* Relative  end  date.   */
+    struct { /* Pack of basic info. */
+        short    index;   /* Index of seat data.      */ 
+        char     start;   /* Number of start station. */
+        char     final;   /* Number of final station. */
+        prices_t price;   /* Prefix price (from begin).   */
+    };
 
-    /* Index of the train data. */
-    int index() const noexcept { return data.index(); }
+    travel_t arrival; /* Arrival time (from begin).   */
+    travel_t leaving; /* Leaving time (from begin).   */
+    travel_t  _time;  /* Start time in one day(00:00).*/
+    char      __beg;  /* Relative train begin day.    */
+    char      __end;  /* Relative train  end  day.    */
 
-    /* Number of the station. */
-    int number() const noexcept { return data.time(); }
+    /* Judge whether a relative day is (from 06-01) in the range. */
+    inline bool out_of_range(int day) const noexcept {
+        day -= travel_day();
+        return day < __beg || __end < day;
+    }
 
-    /* Set the index of the train data and reset the  */
-    void set_index(int __i) noexcept { data.set_index(__i); }
+    /* Whether the station is terminal station. */
+    bool is_terminal() const noexcept { return start == final; }
 
-    /* Add the inner number of station. */
-    void add_number() noexcept { ++data.data; }
+    /* Whether the station is starting station. */
+    bool is_starting() const noexcept { return !start; }
 
-    /* Set the prefix cost. */
-    void set_price(prices_t __p) noexcept { price = __p; }
+    /* Return the leaving time from begin day 00:00. */
+    int leaving_time() const noexcept { return leaving + _time; }
+
+    /* Return the arrival time from begin day 00:00. */
+    int arrival_time() const noexcept { return arrival + _time; }
+
+    /* The day traveling from begin to current station. */
+    int travel_day() const noexcept
+    { return calendar_to_day(leaving_time()); }
 
 };
+static_assert(sizeof(train_view) == 16);
 
-static_assert(sizeof(train_view) == 16,"Die");
 
-using ticket = compressor;
+/* Preview of a station (in query transfer). */
+struct station_views : public dark::trivial_array <train_view> {
+    size_t __hash; /* Inner hash code. */
+    station_views() = default;
+    station_views(size_t __h) noexcept : __hash(__h) {}
+};
+
+
+/* Preview of a transfer. */
+struct transfer_view {
+    stationName_t name;   /* Station name of the mid.   */
+    calendar leaving_beg; /* Absolute leaving from beg. */
+    calendar arrival_end; /* Absolute arrival  at  end. */
+    travel_t interval[2]; /* Interval time between station. */
+    char        __dep[2]; /* Depature day of begin station. */
+
+    struct { /* Pack of basic info. */
+        short    index;   /* Index of seat data.        */ 
+        char     start;   /* Number of start station.   */
+        char     final;   /* Number of final station.   */
+        prices_t price;   /* Prefix price (from begin). */
+    } __[2]; /* Value holder. */
+
+    /* Absolute leaving from beg. */
+    calendar arrival_mid() const noexcept
+    { return leaving_beg + interval[0]; }
+
+    /* Absolute arrival  at  mid.  */
+    calendar leaving_mid() const noexcept
+    { return arrival_end - interval[1]; }
+
+    /* Total time from begin to end. */
+    int sum() const noexcept 
+    { return arrival_end - leaving_beg; }
+    /* Total cost from begin to end. */
+    int cost()     const noexcept 
+    { return __[0].price + __[1].price; }
+    
+    /* Copy the data from two train_view. */
+    inline void copy(const train_view &__v,
+                     const train_view &__t) {
+        memcpy(__ + 0,&__v,sizeof(__[0]));
+        memcpy(__ + 1,&__t,sizeof(__[1]));
+    }
+
+};
+static_assert(sizeof(transfer_view) == 64);
+
+struct train_unit {
+    short index; /*   Train index.    */
+    short __dep; /* The depature day. */
+};
+static_assert(sizeof(train_unit) == 4);
+
 
 }
 
@@ -161,23 +203,53 @@ template <>
 struct Compare <::dark::train_view> {
     int operator()(const ::dark::train_view &lhs,const ::dark::train_view &rhs) 
     const noexcept {
-        return lhs.index() < rhs.index() ? -1 : rhs.index() < lhs.index();
+        return lhs.index < rhs.index ? -1 : rhs.index < lhs.index;
     }
 };
 
+
 /* Write the info of a train and its seat. */
-void writeline(std::pair <train *,int *> __p) {
-    train *__t = __p.first;
-    if(!__t) return (void)puts("-1");
+void writeline(std::tuple <train*,int *,int> __p) {
+    auto [__t,__s,__d] = __p; /* Train || Seats || Starting time. */
+    if(!__t) return (void) puts("-1");
     dark::writeline(__t->tid,__t->type());
-
-    number_t n = __t->stat_num;
-
-    int time = 0;
-    int cost = 0;
-
-    dark::writeline(__t->names[0],"xx-xx xx:xx","->");
-
+    int i = 0;
+    dark::writeline(
+        __t->names[i],
+            "xx-xx xx:xx ->",
+            (time_wrapper) {
+                __d + 
+                __t->leaving_time[i]
+            },
+            __t->price[i],
+            __s ? __s[i] : __t->seat_num
+        );
+    while(++i != __t->stat_num - 1) { 
+        dark::writeline(
+            __t->names[i],
+            (time_wrapper) {
+                __d + 
+                __t->arrival_time[i]
+            },
+            "->",
+            (time_wrapper) {
+                __d + 
+                __t->leaving_time[i]
+            },
+            __t->price[i],
+            __s[i]
+        );
+    }
+    dark::writeline(
+        __t->names[i],
+        (time_wrapper) {
+            __d +
+            __t->arrival_time[i]
+        },
+        "-> xx-xx xx:xx",
+        __t->price[i],
+        'x'
+    );
 };
 
 
@@ -194,9 +266,22 @@ struct hash <::dark::train_state> {
 };
 
 template <>
+struct hash <::dark::station_views> {
+    size_t operator()(const ::dark::station_views &__t) 
+    const noexcept { return __t.__hash; }
+};
+
+template <>
 struct equal_to <::dark::train_state> {
     size_t operator()(const ::dark::train_state &lhs,
                       const ::dark::train_state &rhs) 
+    const noexcept { return lhs.__hash == rhs.__hash; }
+};
+
+template <>
+struct equal_to <::dark::station_views> {
+    size_t operator()(const ::dark::station_views &lhs,
+                      const ::dark::station_views &rhs) 
     const noexcept { return lhs.__hash == rhs.__hash; }
 };
 

@@ -67,10 +67,17 @@ void write(const string <__n> &str) { write(str.base()); }
 template <size_t __n>
 void writeline(const string <__n> &str) { writeline(str.base()); }
 
+namespace hash {
+
+/* For fun only ~ Enjoy it! */
+constexpr size_t fix_random = 1919810114514ULL;
+
+}
+
+
 /* Hash a c-string. */
 size_t string_hash(const char *__s) noexcept {
-    static size_t fix_random = rand();
-    size_t __h = fix_random;
+    size_t __h = hash::fix_random;
     while(*__s) { __h = __h * 137 + *(__s++); }
     return __h;
 }

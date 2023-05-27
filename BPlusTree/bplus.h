@@ -61,7 +61,7 @@ template <
 >
 class tree {
   private: /* Struct and using part. */
-
+    using pair_t  = value_pair  <key_t,T>; 
     using tuple_t = value_tuple <key_t,T>;
 
     /* Maximum node number. */
@@ -663,18 +663,133 @@ class tree {
         /* Find in the first block. */
         while(x != head.count) {
             if(k_comp(key,pointer->data[x].v.key)) return;
-            v.push_back(pointer->data[x++].v.val);
+            v.copy_back(pointer->data[x++].v.val);
         }
         /* Find in the second block. */
         while(pointer->next() != MAXN_SIZE) {
             pointer = get_pointer(*pointer); x = 0;
-            while(x != pointer->count){
+            while(x != pointer->count) {
                 if(k_comp(key,pointer->data[x].v.key)) return;
-                v.push_back(pointer->data[x++].v.val);
+                v.copy_back(pointer->data[x++].v.val);
             }
         }
     }
 
+
+    /* Find all value-type binded to key if satisfying compare function. */
+    template <class __C>
+    void find_if(const key_t &key,return_list &v,__C &&func) {
+        if(empty()) return;
+        header head = root();
+        /* Find the real inner node. */
+        while(head.is_inner()) {
+            visitor pointer = get_pointer(head);
+            int x = lower_bound(pointer->data + 1,key,0,head.count - 1);
+            head = pointer->head(x);
+        }
+        /* The real outer node. */
+        visitor pointer = get_pointer(head);
+        int x = lower_bound(pointer->data,key,0,head.count);
+
+        /* Find in the first block. */
+        while(x != head.count) {
+            if(k_comp(key,pointer->data[x].v.key)) return;
+            const T &val = pointer->data[x++].v.val;
+            if(func(val)) v.copy_back(val);
+        }
+
+        /* Find in the second block. */
+        while(pointer->next() != MAXN_SIZE) {
+            pointer = get_pointer(*pointer); x = 0;
+            while(x != pointer->count) {
+                if(k_comp(key,pointer->data[x].v.key)) return;
+                const T &val = pointer->data[x++].v.val;
+                if(func(val)) v.copy_back(val);
+            }
+        }
+    }
+
+    /* Find all value-type binded to key if satisfying compare function. */
+    template <class __C>
+    void modify_if(const key_t &key,__C &&func) {
+        if(empty()) return;
+        header head = root();
+        /* Find the real inner node. */
+        while(head.is_inner()) {
+            visitor pointer = get_pointer(head);
+            int x = lower_bound(pointer->data + 1,key,0,head.count - 1);
+            head = pointer->head(x);
+        }
+        /* The real outer node. */
+        visitor pointer = get_pointer(head);
+        int x = lower_bound(pointer->data,key,0,head.count);
+
+        /* Find in the first block. */
+        while(x != head.count) {
+            if(k_comp(key,pointer->data[x].v.key)) return;
+            const T &val = pointer->data[x++].v.val;
+            func(val);
+        }
+
+        /* Find in the second block. */
+        while(pointer->next() != MAXN_SIZE) {
+            pointer = get_pointer(*pointer); x = 0;
+            while(x != pointer->count) {
+                if(k_comp(key,pointer->data[x].v.key)) return;
+                const T &val = pointer->data[x++].v.val;
+                func(val);
+            }
+        }
+    }
+
+    struct iterator;
+    friend class iterator;
+    /* Custom iterator. Be careful when modifing. */
+    struct iterator {
+        tree *__t;
+        visitor pointer;
+        int __n;
+
+        iterator &operator ++(void) { 
+            if(++__n == pointer->count) {
+                if(pointer->next() == tree::MAXN_SIZE)    __n = -1;
+                else pointer = __t->get_pointer(*pointer),__n =  0;
+            } return *this;
+        }
+
+        void operator next() {
+            
+        }
+
+        T &operator * (void) const { return  pointer->data[__n].v.val; }
+        T *operator ->(void) const { return &pointer->data[__n].v.val; }
+
+        /* Return the key. */
+        key_t &key() const { return pointer->data[__n].v.key; }
+
+        bool valid() const noexcept { return __n != -1; }
+    };
+
+    /* End iterator. */
+    iterator end() { return {nullptr,{nullptr},-1}; }
+
+    /* Find all value-type binded to key. */
+    iterator lower_bound(const key_t &key) {
+        if(empty()) return end();
+        header head = root();
+        /* Find the real inner node. */
+        while(head.is_inner()) {
+            visitor pointer = get_pointer(head);
+            int x = lower_bound(pointer->data + 1,key,0,head.count - 1);
+            head = pointer->head(x);
+        }
+        /* The real outer node. */
+        visitor pointer = get_pointer(head);
+        int x = lower_bound(pointer->data,key,0,head.count);
+        iterator temp = {this,pointer,x};
+        if(x == head.count) { --temp.__n; ++temp; }
+        return temp;
+    }
 
     // /* Find reference to data , only when there exists only one value tied to key. */
     // T *get_reference(const key_t &key) {

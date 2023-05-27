@@ -239,7 +239,7 @@ class linked_hash_set {
         if(cache.real) { /* Allocate from cache if available. */
             baseptr temp = cache.real; 
             cache.real   = temp->real;
-            memcpy(&static_cast <pointer> (temp)->data,&__k,sizeof(key_t));
+            temp->data   = __k; 
             return temp;
         } else return impl.alloc(hash::forward_tag(),__k);
     }

@@ -48,17 +48,57 @@ struct account {
 };
 
 
-/* Order info holder. */
-struct order {
-    realtrainID_t id; /* trainID */
-    stationName_t fr; /* Departure. */
-    stationName_t to; /* Terminal. */
-    calendar leaving; /* Leaving time. */
-    calendar arrival; /* Arrival time. */
-    prices_t   price; /* Sum of prices.  */
-    number_t   seats; /* Count of seats. */
+struct order_t {
+    stationName_t fr;    /* Departure.      */
+    stationName_t to;    /* Terminal.       */
+
+    int            :  0; /* Padding.        */
+    short state    :  2; /* State of order. */
+    short interval : 14; /* Interval time.  */
+    short index    : 16; /* Index of seat.  */
+    int            :  0; /* Padding.        */
+    int    __dep   :  8; /* Depature day.   */
+    int    count   : 24; /* Count of seats. */
+    int            :  0; /* Padding.        */
+
+    calendar leaving;    /* Leaving  time.  */
+    prices_t price  ;    /* Sum of prices.  */
+
+    char &start() noexcept { return fr[sizeof(fr) - sizeof(char)]; }
+    char &final() noexcept { return to[sizeof(to) - sizeof(char)]; }
+
+    bool is_success()  const noexcept { return state ==  1; }
+    bool is_pending()  const noexcept { return state ==  0; }
+    bool is_refunded() const noexcept { return state == -1; }
+
+    void set_success()  noexcept { state =  1; }
+    void set_pending()  noexcept { state =  0; }
+    void set_refunded() noexcept { state = -1; }
+
+    calendar leaving_time() const noexcept { return leaving; }
+    calendar arrival_time() const noexcept { return leaving + interval; }
+
 };
 
+static_assert(sizeof(order_t) == 80);
+
+
+
+/* Preview data of order. */
+struct order_view {
+    short       index;  /* Seat index.   */
+    travel_t interval;  /* Travel time.  */
+    prices_t    price;  /* Total price   */
+    number_t seat_num;  /* Seat number.  */
+    calendar  leaving;  /* Leaving time. */
+
+    /* Absolute arrival time. */
+    calendar arrival_time() { return leaving + interval; }
+    /* Absolute leaving time. */
+    calendar leaving_time() { return leaving; }
+
+};
+static_assert(sizeof(order_view) == 16);
 
 
 }
@@ -83,7 +123,7 @@ void writeline(account *__a) noexcept {
 
 template <>
 struct Compare <account> {
-    int operator()(const account &lhs,const account &rhs) 
+    int operator()(const account &,const account &) 
     const noexcept { return 0; }
 };
 

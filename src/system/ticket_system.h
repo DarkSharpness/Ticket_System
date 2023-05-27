@@ -74,25 +74,118 @@ class ticket_system : command_parser,train_system,user_system  {
         );
     }
 
-    void query_ticket() {}
+    void query_ticket() {
+        dark::trivial_array <order_view> __v = 
+            train_system::query_ticket(argument('s'),
+                                       argument('t'),
+                                       argument('d'));
+        if(__v.empty()) return dark::writeline('0');
 
-    void query_transfer() {}
+        dark::writeline(__v.size());
+        auto *__p = train_system::trainID();
+        if(argument('p')[0] == 't') {
+            sort(__v.begin(),__v.end(),
+                [=](const order_view &x,const order_view &y) ->bool {
+                    return x.interval != y.interval ?
+                           x.interval <  y.interval :
+                           __p[x.index] < __p[y.index];
+                    }
+            );
+        } else {
+            sort(__v.begin(),__v.end(),
+                [=](const order_view &x,const order_view &y) {
+                    return x.price != y.price ?
+                           x.price <  y.price :
+                           __p[x.index] < __p[y.index];
+                }
+            );
+        }
+        const char *__s = argument('s');
+        const char *__t = argument('t');
+        for(auto view : __v) {
+            dark::writeline(
+                __p[view.index],
+                __s,
+                (time_wrapper){view.leaving_time()},
+                "->",
+                __t,
+                (time_wrapper){view.arrival_time()},
+                view.price,
+                view.seat_num
+            );
+        }
+    }
 
-    void buy_ticket() {}
+    void query_transfer() {
+        transfer_view *view = train_system::query_transfer(
+            argument('s'),
+            argument('t'),
+            argument('d'),
+            argument('p')[0] == 't'
+        );
+        if(!view) return writeline('0');
 
-    void query_order() {}
+        int seat_num[2];
+        for(int i = 0 ; i != 2; ++i)
+            seat_num[i] = /* Compiler should unfold it......maybe...... */
+                train_system::query_seat(
+                    view->__[i].index,
+                    view->__dep[i],
+                    view->__[i].start,
+                    view->__[i].final
+                );
 
-    void refund_ticket() {}
+        auto *__p = train_system::trainID();
+        dark::writeline(
+            __p[view->__[0].index],
+            argument('s'),
+            (time_wrapper){view->leaving_beg},
+            "->",
+            view->name,
+            (time_wrapper){view->arrival_mid()},
+            view->__[0].price,
+            seat_num[0]
+        );
+        dark::writeline(
+            __p[view->__[1].index],
+            view->name,
+            (time_wrapper){view->leaving_mid()},
+            "->",
+            argument('t'),
+            (time_wrapper){view->arrival_end},
+            view->__[1].price,
+            seat_num[1]
+        );
+    }
 
-    void clean() {}
+    void buy_ticket() {
+        auto *__u = user_system::is_login(argument('u'));
+        auto *__o = train_system::buy_ticket(argument('i'),argument('d'),
+                                             argument('n'),argument('f'),
+                                             argument('t'),argument('q')[0] == 't');
+        if(!__o) return (void)puts("-1");
+        if(!__o->state) dark::writeline("queue");
+        else dark::writeline((long long)(__o->price) * __o->count);
+        user_system::add_order(__u,train_system::create_order(*__o));
+    }
+
+    void query_order() {
+
+    }
+
+    void refund_ticket() {
+
+    }
+
+    void clean() { /* This will never happen haha! */ }
 
     void quit() { dark::writeline("bye"); }
   public:
     
     ticket_system() :
         command_parser(),
-        train_system("bin/"),
-         user_system("bin/") {}
+        train_system("train/"),
+         user_system("user/") {}
 
     /**
      * @brief Switch part of the function.

@@ -18,6 +18,10 @@ namespace dark {
 template <class value_t>
 class trivial_array : private std::allocator <value_t>  {
   private:
+
+    template <class T>
+    friend class trivial_array;
+
     value_t *head; /* Head pointer to first element. */
     value_t *tail; /* Tail pointer to one past the last element. */
     value_t *term; /* Terminal pointer to the end of storage. */
@@ -35,7 +39,7 @@ class trivial_array : private std::allocator <value_t>  {
 
     /* Construct a new %array with __n elements' space reserved. */
     trivial_array(size_t __n) { term = (head = tail = alloc(__n)) + __n; }
-    
+
     /* Construct a new %array with __n elements' space filled 0. */
     trivial_array(size_t __n,std::nullptr_t)
     : trivial_array(__n) { memset(head,0,__n * sizeof(value_t)); tail = term; }
@@ -68,12 +72,15 @@ class trivial_array : private std::allocator <value_t>  {
      * @param rhs The %array to move from.
      * @attention Constant time complexity in any case.
      */
-    trivial_array(trivial_array &&rhs) noexcept {
-        head = rhs.head;
-        tail = rhs.tail;
-        term = rhs.term;
+    template <class T>
+    trivial_array(trivial_array <T> &&rhs) noexcept {
+        static_assert(sizeof(value_t) == sizeof(T),"Size dismatch!");
+        head = (value_t *)rhs.head;
+        tail = (value_t *)rhs.tail;
+        term = (value_t *)rhs.term;
         rhs.head = rhs.tail = rhs.term = nullptr;
     }
+
 
     /* Swap the content of two %array in constant time. */
     trivial_array &swap(trivial_array &rhs) noexcept {
@@ -108,7 +115,8 @@ class trivial_array : private std::allocator <value_t>  {
     bool empty()  const noexcept { return head == tail; }
 
     /* Push back one element using memcpy. */
-    void copy_back(const value_t &obj) {
+    template <class T>
+    void copy_back(const T &obj) {
         if(tail == term) { reserve(size() << 1 | empty()); } 
         memcpy(tail++,&obj,sizeof(value_t));
     }

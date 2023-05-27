@@ -8,15 +8,18 @@ namespace dark {
 class user_system {
   private:
     using set_t = external_hash_set <account,8093>;
+    using map_t = bpt <size_t,std::pair<int,int>,1000,1,1>;
 
-    set_t user_set; /* Set of user data. */
-    account temp;   /* Temp account info. */
-
+    set_t  user_set; /* Set of user data. */
+    map_t order_map; /* Map from user to his orders. */
+    account cache_account;  /* Cached. */
 
   public:
 
     /* Read in users. */
-    user_system(std::string __path) : user_set(__path + "user")
+    user_system(std::string __path) :
+        user_set (__path + "user"),
+        order_map(__path + "omap2")
     { for(auto &&iter : user_set) iter.login() = false; }
 
     ~user_system() = default;
@@ -24,12 +27,12 @@ class user_system {
     /* Return whether add_user succeed. */
     bool add_user(const char *__c,const char *__u,const char *__p,
                   const char *__n,const char *__m,const char *__g) {
-        temp.login() = false;
-        temp.count() = 0;
+        cache_account.login() = false;
+        cache_account.count() = 0;
 
         if(user_set.empty()) { /* First insert. */
-            temp.copy(__u,__p,__n,__m,10);
-            user_set.insert(temp);
+            cache_account.copy(__u,__p,__n,__m,10);
+            user_set.insert(cache_account);
             return true;
         }
 
@@ -40,15 +43,15 @@ class user_system {
         if(!__a || __a->login() == false || __a->level() <= lvl) return false;
 
         /* Such user exists. */
-        temp.user = __u;
-        if(user_set.exist(temp)) return false;
+        cache_account.user = __u;
+        if(user_set.exist(cache_account)) return false;
 
         /* Be ready to insert into the map. */
-        temp.pswd = __p;
-        temp.name = __n;
-        temp.mail = __m;
-        temp.level() = lvl;
-        user_set.insert(temp);
+        cache_account.pswd = __p;
+        cache_account.name = __n;
+        cache_account.mail = __m;
+        cache_account.level() = lvl;
+        user_set.insert(cache_account);
         return true;
     }
 
@@ -56,7 +59,7 @@ class user_system {
     /* Return whether login succeed. */
     bool login(const char *__u,const char *__p) {
         auto *__a = user_set.find(string_hash(__u)); /* Account pointer. */
-        
+
         /* No such user || User has logged in || password is wrong   */
         if(!__a || __a->login() || strcmp(__a->pswd.base(),__p) != 0) return false;
         else return (__a->login() = true);
@@ -65,7 +68,7 @@ class user_system {
 
     /* Return whether logout succeed. */
     bool logout(const char *__u) {
-        auto __a = user_set.find(string_hash(__u));
+        auto *__a = user_set.find(string_hash(__u));
         /* No such user || Not logged in. */
         if(!__a || !__a->login()) return false;
         return !(__a->login() = false);
@@ -115,10 +118,15 @@ class user_system {
         return __t;
     }
 
-    /* Return pointer to count of __u's orders. */
-    short *query_order(const char *__u) {
+    /* Return user's account pointer if logged in. */
+    account *is_login(const char *__u) {
         auto *__a = user_set.find(string_hash(__u));
-        return __a ? &__a->count() : nullptr;   
+        return __a && __a->login() == true ? __a : nullptr;
+    }
+
+    /* Add a order for an user. */
+    void add_order(account *__u,int index) {
+        order_map.insert(string_hash(__u->name),{++(__u->count()),index});
     }
 
 
