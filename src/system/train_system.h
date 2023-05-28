@@ -117,9 +117,10 @@ class train_system {
             (order_wrapper)order.state,
             seatID_map[order.index],
             order.fr,
-            order.leaving_time(),
+            (time_wrapper){order.leaving_time()},
             "->",
-            order.arrival_time(),
+            order.to,
+            (time_wrapper){order.arrival_time()},
             order.price,
             order.count
         );
@@ -231,10 +232,12 @@ class train_system {
 
         /* Initialize the data. */
         train_view view = {
-            __t->seats_index,
-            0,
-            (char)(cache_train.seat_num - 1),
-            0,     /* Prefix price. */
+            { 
+                __t->seats_index,
+                0,
+                (char)(cache_train.stat_num - 1),
+                0
+            },     /* Prefix price. */
             0,     /* Arrival time. */
             0,     /* Leaving time. */
             (short)cache_train.time(),
@@ -290,6 +293,7 @@ class train_system {
                 return !(view.out_of_range(day) || view.is_terminal());
             }
         );
+        if(views.empty()) return views;
 
         size_t hid_t = string_hash(__t);
         auto __pf = views.begin(); /* Front pointer to save space. */
@@ -356,7 +360,7 @@ class train_system {
             /* Set the relative day at begin station. */
             view.__beg = view.__end = day - view.travel_day();
             prices_t current_price  = view.price;
-            for(int i = view.start + 1 ; i <= cache_train.seat_num ; ++i) {
+            for(int i = view.start + 1 ; i < cache_train.stat_num ; ++i) {
                 size_t __h   = string_hash(cache_train.names[i]);
                 if(!set.exist(__h)) set.insert(__h);
                 auto *vec = set.find(__h); /* Data vector. */
@@ -387,8 +391,8 @@ class train_system {
             read_train(index);
             data.final = data.start;
             prices_t current_price = data.price;
-            for(int i = 0 ; i != data.final ; ++i) {
-                auto *vec = set.find(string_hash(cache_train.names[i]));
+            for(int i = 0 ; i <= data.final - 1 ; ++i) {
+                const auto *vec = set.find(string_hash(cache_train.names[i]));
                 if(!vec || vec->empty()) continue;
 
                 data.start   = i;
@@ -402,22 +406,24 @@ class train_system {
 
                 bool updated = false; /* Whether middle station changed. */
                 for(const auto view : *vec) {
+                    if(data.index == view.index) continue;
                     calendar arrival = /* Arrival time of first train. */
                         merge_relative_day_time(view.__beg,view.arrival_time());
                     if(arrival > last_leaving) continue;
                     /* Record the transfer information. */
 
-                    const int interval = /* Time from begin to the end. */ 
+                    const int interval = /* Time from begin to the end. */
                         view.arrival - view.leaving +
                         data.arrival - data.leaving +
-                        arrival < init_leaving ?
+                        (arrival < init_leaving ?
                             init_leaving - arrival :
-                            calendar_to_time(last_leaving - arrival);
+                            calendar_to_time(last_leaving - arrival));
                     const int cost = view.price + data.price; /* Total cost. */
 
                     if(tag) {
-                        tag = type ? interval - ans.sum() :
-                                        cost  - ans.cost();
+                        int delta[2] = {cost - ans.cost(),interval - ans.sum()};
+                        int tag = delta[type];
+                        if(!tag) tag = delta[!type];
                         if(tag > 0) continue;
                         if(!tag) {
                             int cmp = strcmp(seatID_map[ans.__[0].index].base(),
@@ -483,12 +489,12 @@ class train_system {
         order.to       = __t;
         order.start()  = i;
         order.final()  = j;
-        order.state    = remainder >= count;
+        order.state    = (remainder >= count);
         order.interval = cache_train.arrival_time[j] - cache_train.leaving_time[i];
         order.index    = __p->seats_index;
         order.__dep    = dep;
         order.count    = count;
-        order.leaving  = dep - __p->__beg + init_leaving;
+        order.leaving  = merge_day_time(dep - __p->__beg,init_leaving);
         order.price    = cache_train.price[j] - cache_train.price[i];
 
         return &order;
@@ -500,9 +506,10 @@ class train_system {
         read_seats(order.index,order.__dep,order.__dep);
         if(order.is_success())
             update_seats(order.start(),order.final(),order.count);
+        else /* Is_pending. */
+            order_map.erase({order.index,(short)order.__dep},index);
         order.set_refunded();
         write_order(index);
-        order_map.erase({order.index,(short)order.__dep},index);
 
         typename map2_t::return_list vec;
         order_map.find ({order.index,(short)order.__dep},vec);
@@ -519,7 +526,7 @@ class train_system {
             int remainder = query_seat(order.start(),order.final());
             if(remainder >= order.count) {
                 order.set_success();
-                write_order(index);
+                write_order(iter);
                 order_map.erase({order.index,(short)order.__dep},iter);
                 update_seats(order.start(),order.final(),-order.count);
             }

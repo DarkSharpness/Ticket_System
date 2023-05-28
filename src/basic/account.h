@@ -28,7 +28,7 @@ struct account {
     }
 
     /* Return count of order of the user. */
-    short &count() noexcept 
+    short &count() noexcept
     { return *(short *)(user.base() + (sizeof(user) - sizeof(short))); }
 
     /* Return the user's level. */

@@ -655,7 +655,7 @@ class tree {
             visitor pointer = get_pointer(head);
             int x = binary_search(pointer->data,key,val,0,head.count);
             if(x == 0) return nullptr; /* Smaller than the smallest node. */
-            else if(x > 0) --x;      /* Move the position */
+            else if(x > 0) --x;        /* Move the position */
             else x = ~x;
             head = pointer->head(x);
         }

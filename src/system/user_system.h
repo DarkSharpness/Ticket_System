@@ -126,7 +126,8 @@ class user_system {
 
     /* Add a order for an given user. */
     void add_order(account *__u,int index) {
-        order_map.insert(string_hash(__u->name),{++(__u->count()),0,index});
+        size_t hid_u = string_hash(__u->user);
+        order_map.insert(hid_u,{++(__u->count()),0,index});
     }
 
     typename map_t::return_list *query_order(const char *__u) {
@@ -145,11 +146,11 @@ class user_system {
         if(!__a || __a->login() == false) return -1;
 
         int count  = __n ? to_unsigned_integer <number_t> (__n) : 1;
-        if(!count || count > (int)__a->count()) return false;
+        if(!count || count > (int)__a->count()) return -1;
 
-        auto *__o  = order_map.find_pointer(hid_u,{__a->count() + 1 - count});
+        auto *__o  = order_map.find_pointer(hid_u,{__a->count() + 1 - count,0,0});
         if(__o->avail) return -1;
-        __o->avail = 1;
+        __o->avail = -1;
 
         return __o->index;
     }

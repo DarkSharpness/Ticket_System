@@ -189,7 +189,7 @@ class ticket_system : command_parser,train_system,user_system  {
 
     void refund_ticket() {
         auto result = user_system::refund_ticket(argument('u'),argument('n'));
-        dark::writeline(result == -1);
+        dark::writeline(result != -1);
         if(result == -1) return;
         train_system::refund_ticket(result);
     }
