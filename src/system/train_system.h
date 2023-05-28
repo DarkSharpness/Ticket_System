@@ -128,7 +128,7 @@ class train_system {
 
     /* Query the minimum seat between station i and j. */
     int query_seat(int i,int j) {
-        int ans = INT_MAX;
+        int ans = 0x7fffffff;
         while(i != j)
             ans = std::min(ans,cache_seats.count[0][i++]);
         return ans;
@@ -137,7 +137,7 @@ class train_system {
     /* Query the minimum seat between station i and j on day x. */
     int query_seat(int index,int dep,int i,int j) {
         read_seats(index,dep,dep);
-        int ans = INT_MAX;
+        int ans = 0x7fffffff;
         while(i != j)
             ans = std::min(ans,cache_seats.count[0][i++]);
         return ans;
@@ -191,6 +191,11 @@ class train_system {
 
     /* Complete. */
     bool delete_train(const char *__i) {
+        if(!strcmp(__i,"motion")) {
+            dark::write("");
+        }
+
+
         auto iter = train_set.find_pre(string_hash(__i));
         auto *__p = iter.next_data();
 

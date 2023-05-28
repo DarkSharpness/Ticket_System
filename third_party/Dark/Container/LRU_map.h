@@ -239,7 +239,7 @@ class linked_hash_set {
         if(cache.real) { /* Allocate from cache if available. */
             baseptr temp = cache.real; 
             cache.real   = temp->real;
-            temp->data   = __k; 
+            static_cast <pointer> (temp)->data = __k;
             return temp;
         } else return impl.alloc(hash::forward_tag(),__k);
     }
@@ -340,7 +340,7 @@ class linked_hash_set {
      * 
      * @param __h Hash code.
      */
-    bool erase(iterator iter) { return erase_next(iter.__p->real); }
+    bool erase(iterator iter) { return erase_next(iter.__p); }
 
     /* Judge whether the key existed. */
     bool exist(const key_t &__k) { return find_key(__k)->real; }
