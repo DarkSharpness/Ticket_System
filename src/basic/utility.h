@@ -206,7 +206,7 @@ inline bool is_blank(char ch) noexcept { return ch == ' ' || ch == '\n' || ch ==
 
 /* Read a visible string (supporting UTF-8) and return its tail. */
 char *read_string(char *str) noexcept {
-    do {   *str = getchar(); } while( is_blank(*str)); 
+    do {   *str = getchar(); } while( is_blank(*str));
     do { *++str = getchar(); } while(!is_blank(*str));
     return str;
 }
