@@ -13,8 +13,8 @@ class train_system {
     
     using set1_t  = external_hash_set <train_state,12000>;
     using set2_t  = dark::linked_hash_set <station_views,4000>;
-    using map1_t  = bpt <size_t,train_view,500,128,1>;
-    using map2_t  = bpt <train_unit,int,500,128,1>;
+    using map1_t  = bpt <size_t,train_view,500,512,1>;
+    using map2_t  = bpt <train_unit,int,500,512,1>;
     using array_t = external_array <realtrainID_t>;
 
     using data_file_t  = file_manager <train>;

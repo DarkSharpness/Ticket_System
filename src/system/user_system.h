@@ -8,7 +8,7 @@ namespace dark {
 class user_system {
   private:
     using set_t = external_hash_set <account,8093>;
-    using map_t = bpt <size_t,order_info,1000,128,1>;
+    using map_t = bpt <size_t,order_info,1000,512,1>;
 
     set_t  user_set; /* Set of user data. */
     map_t order_map; /* Map from user to his orders. */
