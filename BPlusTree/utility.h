@@ -9,11 +9,12 @@ namespace dark {
 
 enum class node_type : bool  { INNER = 1,OUTER = 0 };
 
-
+int debug_number = 0;
 /* Custom error caller. */
 struct error {
     error(std::string str) {
         freopen("CON","w",stdout);
+        std::cout << debug_number << '\n';
         std::cout << str << '\n';
     }
 };

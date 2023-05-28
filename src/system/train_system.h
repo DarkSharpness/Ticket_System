@@ -506,16 +506,21 @@ class train_system {
     }
 
     /* Complete. */
-    void refund_ticket(int index) {
+    bool refund_ticket(int index) {
         read_order(index);
+        if(order.is_refunded()) return false;
+
         read_seats(order.index,order.__dep,order.__dep);
-        if(order.is_success())
-            update_seats(order.start(),order.final(),order.count);
-        else /* Is_pending. */
-            order_map.erase({order.index,(short)order.__dep},index);
+        bool flag = order.is_pending();
         order.set_refunded();
         write_order(index);
 
+        if(flag) { /* Is_pending. */
+            order_map.erase({order.index,(short)order.__dep},index);
+            return true;
+        }
+
+        update_seats(order.start(),order.final(),order.count);
         typename map2_t::return_list vec;
         order_map.find ({order.index,(short)order.__dep},vec);
 
@@ -537,6 +542,7 @@ class train_system {
             }
         }
         write_seats(order.index,order.__dep,order.__dep);
+        return true;
     }
 
 };

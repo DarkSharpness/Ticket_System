@@ -55,15 +55,17 @@ class command_parser {
      */
     command_t parse() noexcept {
         /* First read and write out timestamp. */
-        // write_input(); putchar(' ');
+        write_input(); putchar(' ');
 
         /* DEBUG only! */
-        size_t time_stamp = dark::read <size_t> ();
+        // size_t time_stamp = dark::read <size_t> ();
 
-        if(time_stamp == 393071)
-            time_stamp = time_stamp * 2 - 393071;
+        // debug_number = time_stamp;
 
-        dark::print('[',time_stamp,']',' ');
+        // if(time_stamp == 3311486)
+        //     time_stamp = time_stamp * 2 - 3311486;
+
+        // dark::print('[',time_stamp,']',' ');
 
         /* Then , get command. */
         read_string(buffer);
